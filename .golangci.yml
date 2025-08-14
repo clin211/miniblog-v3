@@ -1,0 +1,16 @@
+# golangci-lint configuration
+version: "1.54"
+
+linters:
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - govet
+    - staticcheck
+    - typecheck
+    - unused
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
