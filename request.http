@@ -1,0 +1,17 @@
+### 测试 API - 使用 "you" 作为 name 参数
+GET http://localhost:8888/from/you
+Content-Type: application/json
+
+###
+
+### 测试 API - 使用 "me" 作为 name 参数
+GET http://localhost:8888/from/me
+Content-Type: application/json
+
+###
+
+### 测试 API - 使用无效的 name 参数（应该返回错误）
+GET http://localhost:8888/from/invalid
+Content-Type: application/json
+
+###
