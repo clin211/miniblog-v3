@@ -1,0 +1,17 @@
+syntax = "v1"
+
+type LoginRequest {
+	email    string `json:"email"`
+	password string `json:password:`
+}
+
+type LoginResponse {
+	accessToken  string `json:"accessToken"`
+	refreshToken string `json:"refreshToken"`
+}
+
+service User {
+	@handler LoginHandler
+	post /Login (LoginRequest) returns (LoginResponse)
+}
+

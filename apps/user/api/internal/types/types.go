@@ -3,10 +3,12 @@
 
 package types
 
-type Request struct {
-	Name string `path:"name,options=you|me"`
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:password:`
 }
 
-type Response struct {
-	Message string `json:"message"`
+type LoginResponse struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
 }
