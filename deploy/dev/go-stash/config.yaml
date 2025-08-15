@@ -1,0 +1,24 @@
+# go-stash 配置文件 - 简化版本
+# 用于从 Kafka 消费日志数据并写入 Elasticsearch
+
+Clusters:
+- Input:
+    Kafka:
+      Name: filebeat-logs
+      Brokers:
+      - kafka:29092
+      Topics:
+      - filebeat-logs
+      Group: go-stash-group
+      Consumers: 1
+      Processors: 1
+
+  Output:
+    ElasticSearch:
+      Hosts:
+      - http://elasticsearch:9200
+      Index: "miniblog-logs-{service}-{yyyy.MM.dd}"
+      MaxChunkBytes: 1048576
+      GracePeriod: 5s
+      Compress: false
+      TimeZone: "Asia/Shanghai"

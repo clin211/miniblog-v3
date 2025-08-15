@@ -1,5 +1,5 @@
 # Go项目构建工具
-.PHONY: fmt lint test build clean install-tools dev dev-fg dev-stop dev-clean dev-logs dev-restart dev-status
+.PHONY: fmt lint test build clean install-tools dev dev-fg dev-stop dev-clean dev-logs dev-restart dev-status env-start env-stop env-clean
 
 # 项目根目录
 ROOT_DIR := $(shell pwd)
@@ -34,31 +34,47 @@ install-tools:
 # 开发环境管理
 dev:
 	@echo "后台启动开发环境..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose up --build -d
+	cd $(ROOT_DIR)/deploy/dev && docker compose up --build -d
 
 dev-fg:
 	@echo "前台启动开发环境..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose up --build
+	cd $(ROOT_DIR)/deploy/dev && docker compose up --build
 
 dev-stop:
 	@echo "停止开发环境..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose down
+	cd $(ROOT_DIR)/deploy/dev && docker compose down
 
 dev-clean:
 	@echo "清理开发环境（删除容器、网络、镜像和数据卷）..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose down -v --rmi all --remove-orphans
+	cd $(ROOT_DIR)/deploy/dev && docker compose down -v --rmi all --remove-orphans
 
 dev-logs:
 	@echo "查看开发环境日志..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose logs -f
+	cd $(ROOT_DIR)/deploy/dev && docker compose logs -f
 
 dev-restart:
 	@echo "重启开发环境..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose restart
+	cd $(ROOT_DIR)/deploy/dev && docker compose restart
 
 dev-status:
 	@echo "查看服务状态..."
-	cd $(ROOT_DIR)/deploy/dev && docker-compose ps
+	cd $(ROOT_DIR)/deploy/dev && docker compose ps
+
+env-start:
+	@echo "创建共享网络..."
+	docker network create miniblog-network || true
+	@echo "启动基础环境服务（MySQL、Redis、Kafka）..."
+	cd $(ROOT_DIR)/deploy/dev && docker compose -f docker-compose.env.yml up -d
+
+env-stop:
+	@echo "停止基础环境服务（MySQL、Redis、Kafka）..."
+	cd $(ROOT_DIR)/deploy/dev && docker compose -f docker-compose.env.yml down
+
+env-clean:
+	@echo "清理基础环境和网络..."
+	cd $(ROOT_DIR)/deploy/dev && docker compose -f docker-compose.env.yml down -v
+	docker network rm miniblog-network || true
+
 
 # 清理构建产物
 clean:

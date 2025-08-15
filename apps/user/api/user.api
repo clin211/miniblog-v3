@@ -1,17 +1,29 @@
 syntax = "v1"
 
-type LoginRequest {
-	email    string `json:"email"`
-	password string `json:password:`
-}
+type (
+	LoginRequest {
+		email    string `json:"email"`
+		password string `json:password:`
+	}
+	LoginResponse {
+		accessToken  string `json:"accessToken"`
+		refreshToken string `json:"refreshToken"`
+	}
+)
 
-type LoginResponse {
-	accessToken  string `json:"accessToken"`
-	refreshToken string `json:"refreshToken"`
-}
+type (
+	RegisterRequest {
+		email    string `json:"email"`
+		password string `json:password:`
+	}
+	RegisterResponse  {}
+)
 
 service User {
 	@handler LoginHandler
-	post /Login (LoginRequest) returns (LoginResponse)
+	post /login (LoginRequest) returns (LoginResponse)
+
+	@handler RegisterHandler
+	post /register (RegisterRequest) returns (RegisterResponse)
 }
 

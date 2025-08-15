@@ -14,6 +14,7 @@ services:
       - ../../:/app
       - go-cache:/go/pkg/mod
       - air-cache:/root/.cache/go-build
+      - ../../logs:/var/log/app  # 整个日志目录挂载（让应用可以访问所有日志目录）
     environment:
       - SERVICE_NAME=user-api
       - SERVICE_PATH=./apps/user/api
@@ -37,6 +38,7 @@ services:
       - ../../:/app
       - go-cache:/go/pkg/mod
       - air-cache:/root/.cache/go-build
+      - ../../logs:/var/log/app  # 整个日志目录挂载（让应用可以访问所有日志目录）
     environment:
       - SERVICE_NAME=user-rpc
       - SERVICE_PATH=./apps/user/rpc
@@ -54,7 +56,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/logs:/var/log/nginx
+      - ../../logs/nginx:/var/log/nginx  # nginx 日志目录挂载
+      - ../../logs:/var/log/app  # 整个日志目录（用于访问其他服务日志）
     networks:
       - miniblog-network
     depends_on:
@@ -64,7 +67,8 @@ services:
 
 networks:
   miniblog-network:
-    driver: bridge
+    external: true
+    name: miniblog-network
 
 volumes:
   go-cache:

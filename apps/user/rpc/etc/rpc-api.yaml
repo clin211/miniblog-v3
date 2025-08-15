@@ -1,3 +1,12 @@
 Name: rpc-api
 Host: 0.0.0.0
 Port: 8889
+
+# 日志配置
+Log:
+  ServiceName: user-rpc
+  Mode: file
+  Path: /var/log/app/user-rpc
+  Level: info
+  Compress: false
+  KeepDays: 7

@@ -1,0 +1,76 @@
+filebeat.inputs:
+# user-api 服务日志
+- type: log
+  enabled: true
+  paths:
+  - /var/log/app/user-api/*.log
+  fields:
+    service: user-api
+    service_type: api
+    env: dev
+  fields_under_root: true
+
+# user-rpc 服务日志
+- type: log
+  enabled: true
+  paths:
+  - /var/log/app/user-rpc/*.log
+  fields:
+    service: user-rpc
+    service_type: rpc
+    env: dev
+  fields_under_root: true
+
+# nginx 网关日志
+- type: log
+  enabled: true
+  paths:
+  - /var/log/app/nginx/*.log
+  fields:
+    service: nginx
+    service_type: gateway
+    env: dev
+  fields_under_root: true
+
+# user-api 根目录日志（当前实际位置）
+- type: log
+  enabled: true
+  paths:
+  - /var/log/app/access.log
+  - /var/log/app/stat.log
+  exclude_files: [ '.*\/(user-rpc|nginx)\/.*' ]
+  fields:
+    service: user-api
+    service_type: api
+    env: dev
+  fields_under_root: true
+
+# 其他根目录日志
+- type: log
+  enabled: true
+  paths:
+  - /var/log/app/error.log
+  - /var/log/app/severe.log
+  - /var/log/app/slow.log
+  exclude_files: [ '.*\/(user-api|user-rpc|nginx)\/.*' ]
+  fields:
+    service: legacy
+    service_type: system
+    env: dev
+  fields_under_root: true
+
+processors:
+- add_host_metadata:
+    when.not.contains.tags: forwarded
+
+# 直接输出到 Elasticsearch 进行测试
+output.elasticsearch:
+  hosts: [ "elasticsearch:9200" ]
+  index: "miniblog-logs-%{+yyyy.MM.dd}"
+
+logging.level: info
+logging.to_files: false
+logging.to_stderr: true
+
+setup.ilm.enabled: false
+setup.template.enabled: false

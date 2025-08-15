@@ -1,3 +1,12 @@
 Name: User
 Host: 0.0.0.0
 Port: 8888
+
+# 日志配置
+Log:
+  ServiceName: user-api
+  Mode: file
+  Path: /var/log/app/user-api
+  Level: info
+  Compress: false
+  KeepDays: 7
