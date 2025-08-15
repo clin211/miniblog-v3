@@ -1,17 +1,63 @@
-### 测试 API - 使用 "you" 作为 name 参数
-GET http://localhost:8888/from/you
+# MiniBlog API 测试请求
+
+### 网关健康检查
+GET http://localhost:8099/health
 Content-Type: application/json
 
 ###
 
-### 测试 API - 使用 "me" 作为 name 参数
-GET http://localhost:8888/from/me
+### 测试用户登录API - 通过网关访问
+POST http://localhost:8099/api/user/Login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+###
+
+### 测试用户登录API - 通过网关访问（无效邮箱）
+POST http://localhost:8099/api/user/Login
+Content-Type: application/json
+
+{
+  "email": "invalid-email",
+  "password": "123456"
+}
+
+###
+
+### 直接访问用户登录API服务
+POST http://localhost:8888/Login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+###
+
+### 直接访问用户登录API服务（空密码测试）
+POST http://localhost:8888/Login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": ""
+}
+
+###
+
+### 测试用户RPC服务 - 通过网关
+GET http://localhost:8099/rpc/user/ping
 Content-Type: application/json
 
 ###
 
-### 测试 API - 使用无效的 name 参数（应该返回错误）
-GET http://localhost:8888/from/invalid
+### 直接访问用户RPC服务
+GET http://localhost:8889/ping
 Content-Type: application/json
 
 ###

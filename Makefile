@@ -1,61 +1,68 @@
 # Go项目构建工具
-.PHONY: fmt lint test build dev
+.PHONY: fmt lint test build clean install-tools dev dev-fg dev-stop dev-clean dev-logs dev-restart dev-status
 
 # 项目根目录
 ROOT_DIR := $(shell pwd)
+OUTPUT_DIR := $(ROOT_DIR)/_output
 
-# 服务配置
-# 默认包含所有发现的服务
-# 要排除的服务添加到DISABLED_SERVICES变量
-
-# 动态发现所有服务
-ALL_SERVICES := $(wildcard apps/*/api) $(wildcard apps/*/rpc)
-
-# 要排除的服务(设置为空表示包含所有服务)
-# 示例: DISABLED_SERVICES = apps/user/api apps/user/rpc
-DISABLED_SERVICES ?=
-
-# 激活的服务列表
-ENABLED_SERVICES = $(filter-out $(DISABLED_SERVICES),$(ALL_SERVICES))
-
-# 格式化代码
+# 代码质量工具
 fmt:
 	go fmt ./...
 	goimports -w -l .
 
-# 静态代码检查
 lint:
 	golangci-lint run ./...
 
-# 运行测试
 test:
 	go test -v -cover ./...
 
-# 构建所有服务
 build:
-	@for service in $(ENABLED_SERVICES); do \
-		service_name=$$(basename $$(dirname $$service))-$$(basename $$service); \
-		echo "Building $$service_name..."; \
-		go build -o $(ROOT_DIR)/bin/$$service_name $(ROOT_DIR)/$$service; \
-	done
+	@echo "构建所有服务..."
+	@mkdir -p $(OUTPUT_DIR)
+	@echo "构建用户API服务..."
+	go build -o $(OUTPUT_DIR)/user-api $(ROOT_DIR)/apps/user/api/user.go
+	@echo "构建用户RPC服务..."
+	go build -o $(OUTPUT_DIR)/user-rpc $(ROOT_DIR)/apps/user/rpc/rpc.go
+	@echo "构建完成！二进制文件位于: $(OUTPUT_DIR)/"
 
-# 开发模式(启动所有启用服务)
-dev:
-	@for service in $(ENABLED_SERVICES); do \
-		service_name=$$(basename $$(dirname $$service))-$$(basename $$service); \
-		echo "Starting $$service_name..."; \
-		cd $(ROOT_DIR)/$$(dirname $$service) && \
-		if [ "$$(basename $$service)" = "api" ]; then \
-			CONFIG_FILE=$(ROOT_DIR)/$$service/etc/api-api.yaml; \
-		else \
-			CONFIG_FILE=$(ROOT_DIR)/$$service/etc/rpc-api.yaml; \
-		fi && \
-		air -c $(ROOT_DIR)/.air.toml -build.cmd "go build -o $(ROOT_DIR)/tmp/$$service_name $(ROOT_DIR)/$$service" -build.bin "$(ROOT_DIR)/tmp/$$service_name" -- -f $$CONFIG_FILE & \
-	done; \
-	echo "Services started in background. Use 'pkill air' to stop."
-
-# 安装开发工具链
+# 开发工具安装
 install-tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install github.com/air-verse/air@latest
+
+# 开发环境管理
+dev:
+	@echo "后台启动开发环境..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose up --build -d
+
+dev-fg:
+	@echo "前台启动开发环境..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose up --build
+
+dev-stop:
+	@echo "停止开发环境..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose down
+
+dev-clean:
+	@echo "清理开发环境（删除容器、网络、镜像和数据卷）..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose down -v --rmi all --remove-orphans
+
+dev-logs:
+	@echo "查看开发环境日志..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose logs -f
+
+dev-restart:
+	@echo "重启开发环境..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose restart
+
+dev-status:
+	@echo "查看服务状态..."
+	cd $(ROOT_DIR)/deploy/dev && docker-compose ps
+
+# 清理构建产物
+clean:
+	@echo "清理构建产物..."
+	rm -rf $(OUTPUT_DIR)
+	rm -rf $(ROOT_DIR)/tmp
+	@echo "清理完成！"

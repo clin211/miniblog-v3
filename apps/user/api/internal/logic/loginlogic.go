@@ -27,7 +27,7 @@ func (l *LoginLogic) Login(req *types.LoginRequest) (resp *types.LoginResponse, 
 	email := req.Email
 	password := req.Password
 	return &types.LoginResponse{
-		AccessToken:  email + password,
-		RefreshToken: email + password,
+		AccessToken:  email + password + "1",
+		RefreshToken: email + password + "2",
 	}, nil
 }
