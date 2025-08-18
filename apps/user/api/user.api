@@ -2,8 +2,8 @@ syntax = "v1"
 
 type (
 	LoginRequest {
-		email    string `json:"email"`
-		password string `json:password:`
+		email    string `json:"email" valid:"required,email"`
+		password string `json:"password" valid:"required,length(6|32)"`
 	}
 	LoginResponse {
 		accessToken  string `json:"accessToken"`
@@ -13,8 +13,8 @@ type (
 
 type (
 	RegisterRequest {
-		email    string `json:"email"`
-		password string `json:password:`
+		email    string `json:"email" valid:"required,email"`
+		password string `json:"password" valid:"required,length(6|32)"`
 	}
 	RegisterResponse  {}
 )
