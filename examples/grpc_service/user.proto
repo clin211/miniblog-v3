@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "examples/grpc_service/pb";
+
+// 用户服务定义
+service UserService {
+  // 查询单个用户
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // 批量查询用户
+  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
+}
+
+// 查询单个用户请求
+message GetUserRequest {
+  string id = 1;
+}
+
+// 查询单个用户响应
+message GetUserResponse {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+// 批量查询用户请求
+message BatchGetUsersRequest {
+  repeated string ids = 1;
+}
+
+// 批量查询用户响应
+message BatchGetUsersResponse {
+  repeated UserResult results = 1;
+}
+
+// 用户查询结果
+message UserResult {
+  string id = 1;
+  oneof result {
+    GetUserResponse user = 2;
+    string error = 3;
+  }
+}
