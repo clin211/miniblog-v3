@@ -81,7 +81,7 @@ func WriteResponse(ctx context.Context, w http.ResponseWriter, v any) {
 		}
 
 		// 其他 error -> Not Found
-		body := responseBody{Code: errorx.ErrPageNotFound.Code, Message: errorx.ErrPageNotFound.Message, Data: nil, Reason: err.Error()}
+		body := responseBody{Code: errorx.ErrResourceNotFound.Code, Message: errorx.ErrResourceNotFound.Message, Data: nil, Reason: err.Error()}
 		httpx.WriteJsonCtx(ctx, w, http.StatusNotFound, body)
 		return
 	}

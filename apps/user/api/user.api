@@ -1,29 +1,77 @@
 syntax = "v1"
 
 type (
-	LoginRequest {
-		email    string `json:"email" valid:"required,email"`
-		password string `json:"password" valid:"required,length(6|32)"`
-	}
-	LoginResponse {
-		accessToken  string `json:"accessToken"`
-		refreshToken string `json:"refreshToken"`
-	}
-)
-
-type (
+	// RegisterRequest 用户注册请求
 	RegisterRequest {
-		email    string `json:"email" valid:"required,email"`
-		password string `json:"password" valid:"required,length(6|32)"`
+		Username       string `json:"username" valid:"required,length(3|100)"` // 用户名
+		Password       string `json:"password" valid:"required,length(6|32)"` // 密码
+		Email          string `json:"email" valid:"required,email"` // 邮箱
+		Phone          string `json:"phone" valid:"required,length(11|20)"` // 手机号
+		Age            int    `json:"age,optional" valid:"range(1|120)"` // 年龄
+		Gender         int    `json:"gender,optional" valid:"range(0|3)"` // 性别：0-未设置，1-男，2-女，3-其他
+		Avatar         string `json:"avatar,optional"` // 头像URL
+		RegisterSource int    `json:"registerSource,optional" valid:"range(1|6)"` // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
 	}
-	RegisterResponse  {}
+	// RegisterResponse 用户注册响应
+	RegisterResponse {
+		UserId string `json:"userId"` // 用户ID
+	}
+	// GetUserRequest 获取用户信息请求
+	GetUserRequest {
+		UserId string `json:"userId" valid:"required"` // 用户ID
+	}
+	// GetUserResponse 获取用户信息响应
+	GetUserResponse {
+		UserId    string `json:"userId"` // 用户ID
+		Username  string `json:"username"` // 用户名
+		Email     string `json:"email"` // 邮箱
+		Phone     string `json:"phone"` // 手机号
+		Age       int    `json:"age"` // 年龄
+		Gender    int    `json:"gender"` // 性别
+		Avatar    string `json:"avatar"` // 头像URL
+		Status    int    `json:"status"` // 状态
+		CreatedAt string `json:"createdAt"` // 创建时间
+		UpdatedAt string `json:"updatedAt"` // 更新时间
+	}
+	// UpdateUserRequest 更新用户信息请求
+	UpdateUserRequest {
+		UserId   string `json:"userId" valid:"required"` // 用户ID
+		Username string `json:"username,optional" valid:"length(3|100)"` // 用户名
+		Age      int    `json:"age,optional" valid:"range(1|120)"` // 年龄
+		Gender   int    `json:"gender,optional" valid:"range(0|3)"` // 性别
+		Avatar   string `json:"avatar,optional"` // 头像URL
+	}
+	// UpdateUserResponse 更新用户信息响应
+	UpdateUserResponse {
+		UserId    string `json:"userId"` // 用户ID
+		Username  string `json:"username"` // 用户名
+		UpdatedAt string `json:"updatedAt"` // 更新时间
+	}
+	// DeleteUserRequest 删除用户请求
+	DeleteUserRequest {
+		UserId string `json:"userId" valid:"required"` // 用户ID
+	}
+	// DeleteUserResponse 删除用户响应
+	DeleteUserResponse {
+		Success bool `json:"success"` // 是否成功
+	}
 )
 
-service User {
-	@handler LoginHandler
-	post /login (LoginRequest) returns (LoginResponse)
+service UserRpc {
+	// Register 用户注册
+	@handler Register
+	post /user/register (RegisterRequest) returns (RegisterResponse)
 
-	@handler RegisterHandler
-	post /register (RegisterRequest) returns (RegisterResponse)
+	// GetUser 获取用户信息
+	@handler GetUser
+	get /user/:userId (GetUserRequest) returns (GetUserResponse)
+
+	// UpdateUser 更新用户信息
+	@handler UpdateUser
+	put /user/:userId (UpdateUserRequest) returns (UpdateUserResponse)
+
+	// DeleteUser 删除用户
+	@handler DeleteUser
+	delete /user/:userId (DeleteUserRequest) returns (DeleteUserResponse)
 }
 

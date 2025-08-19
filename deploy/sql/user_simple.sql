@@ -1,16 +1,3 @@
--- Copyright 2025 长林啊 <767425412@qq.com>. All rights reserved.
--- Use of this source code is governed by a MIT style
--- license that can be found in the LICENSE file. The original repo for
--- this file is https://github.com/clin211/miniblog-v3.git.
-
--- 创建数据库
-CREATE DATABASE IF NOT EXISTS miniblog_user DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE miniblog_user;
-
--- 删除已存在的表（按依赖关系逆序删除）
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS casbin_rule;
-
 -- 用户表
 CREATE TABLE `users` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '自增 ID',
@@ -48,17 +35,3 @@ CREATE TABLE `users` (
     INDEX idx_status (`status`),
     INDEX idx_deleted_at (`deleted_at`)
 ) COMMENT='用户表' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- casbin_rule
-CREATE TABLE `casbin_rule` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `ptype` varchar(100) DEFAULT NULL,
-  `v0` varchar(100) DEFAULT NULL,
-  `v1` varchar(100) DEFAULT NULL,
-  `v2` varchar(100) DEFAULT NULL,
-  `v3` varchar(100) DEFAULT NULL,
-  `v4` varchar(100) DEFAULT NULL,
-  `v5` varchar(100) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_casbin_rule` (`ptype`,`v0`,`v1`,`v2`,`v3`,`v4`,`v5`)
-) COMMENT='casbin_rule' ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;

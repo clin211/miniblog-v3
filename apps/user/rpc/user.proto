@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package rpc;
+option go_package="./rpc";
+
+// RegisterRequest 用户注册请求
+message RegisterRequest {
+  string username = 1;        // 用户名
+  string password = 2;        // 密码
+  string email = 3;           // 邮箱
+  string phone = 4;           // 手机号
+  int32 age = 5;              // 年龄
+  int32 gender = 6;           // 性别：0-未设置，1-男，2-女，3-其他
+  string avatar = 7;          // 头像URL
+  int32 register_source = 8;  // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
+  string wechat_openid = 9;  // 微信OpenID
+}
+
+// RegisterResponse 用户注册响应
+message RegisterResponse {
+  string user_id = 1;         // 用户ID
+}
+
+// GetUserRequest 获取用户信息请求
+message GetUserRequest {
+  string user_id = 1;         // 用户ID
+}
+
+// GetUserResponse 获取用户信息响应
+message GetUserResponse {
+  string user_id = 1;         // 用户ID
+  string username = 2;        // 用户名
+  string email = 3;           // 邮箱
+  string phone = 4;           // 手机号
+  int32 age = 5;              // 年龄
+  int32 gender = 6;           // 性别
+  string avatar = 7;          // 头像URL
+  int32 status = 8;           // 状态
+  string created_at = 9;      // 创建时间
+  string updated_at = 10;     // 更新时间
+}
+
+// UpdateUserRequest 更新用户信息请求
+message UpdateUserRequest {
+  string user_id = 1;         // 用户ID
+  string username = 2;        // 用户名
+  int32 age = 3;              // 年龄
+  int32 gender = 4;           // 性别
+  string avatar = 5;          // 头像URL
+}
+
+// UpdateUserResponse 更新用户信息响应
+message UpdateUserResponse {
+  string user_id = 1;         // 用户ID
+}
+
+// DeleteUserRequest 删除用户请求
+message DeleteUserRequest {
+  string user_id = 1;         // 用户ID
+}
+
+// DeleteUserResponse 删除用户响应
+message DeleteUserResponse {
+  bool success = 1;           // 是否成功
+}
+
+service User {
+  // Register 用户注册
+  rpc Register(RegisterRequest) returns(RegisterResponse);
+
+  // GetUser 获取用户信息
+  rpc GetUser(GetUserRequest) returns(GetUserResponse);
+
+  // UpdateUser 更新用户信息
+  rpc UpdateUser(UpdateUserRequest) returns(UpdateUserResponse);
+
+  // DeleteUser 删除用户
+  rpc DeleteUser(DeleteUserRequest) returns(DeleteUserResponse);
+}

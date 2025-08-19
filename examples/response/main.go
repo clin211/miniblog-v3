@@ -98,7 +98,7 @@ func main() {
 		Path:   "/normal-error",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			// 普通 error 会被转换为 404 Not Found
-			response.WriteResponse(r.Context(), w, errorx.ErrPageNotFound)
+			response.WriteResponse(r.Context(), w, errorx.ErrResourceNotFound)
 		},
 	}})
 
