@@ -2,8 +2,10 @@
     "cSpell.words": [
         "Alphanum",
         "asaskevich",
+        "Errno",
         "errorx",
         "govalidator",
+        "grpcurl",
         "Httpx",
         "miniblog"
     ]

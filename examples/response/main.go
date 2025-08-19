@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/clin211/miniblog-v3/pkg/errorx"
 	"github.com/clin211/miniblog-v3/pkg/response"
 	"github.com/clin211/miniblog-v3/pkg/validate"
 	"github.com/zeromicro/go-zero/rest"
@@ -33,16 +34,16 @@ func main() {
 		Path:   "/ok",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			resp := &DemoResponse{Message: "hello"}
-			response.SuccessCtx(r.Context(), w, "response message", resp, map[string]any{"traceId": "demo-trace"})
+			response.SuccessCtx(r.Context(), w, "response message", resp, "demo-trace")
 		},
 	}})
 
-	// 未找到示例：/notfound
+	// 自定义失败示例：/fail
 	server.AddRoutes([]rest.Route{{
 		Method: http.MethodGet,
-		Path:   "/notfound",
+		Path:   "/fail",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			response.NotFoundCtx(r.Context(), w, "resource not found")
+			response.FailCtx(r.Context(), w, 10001, "业务失败", "详细失败原因")
 		},
 	}})
 
@@ -53,11 +54,11 @@ func main() {
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			var req DemoRequest
 			if err := httpx.Parse(r, &req); err != nil {
-				response.JsonBaseResponseCtx(r.Context(), w, err)
+				response.WriteResponse(r.Context(), w, err)
 				return
 			}
 			// 正常业务
-			response.JsonBaseResponseCtx(r.Context(), w, &DemoResponse{Message: "ok"})
+			response.WriteResponse(r.Context(), w, nil)
 		},
 	}})
 
@@ -70,7 +71,34 @@ func main() {
 			verr := validate.ValidationErrors{
 				&validate.ValidationError{Field: "Email", Message: "邮箱格式不正确", Value: "final-direct-testexample.com"},
 			}
-			response.JsonBaseResponseCtx(r.Context(), w, verr)
+			response.WriteResponse(r.Context(), w, verr)
+		},
+	}})
+
+	// 业务错误示例：/business-error
+	server.AddRoutes([]rest.Route{{
+		Method: http.MethodGet,
+		Path:   "/business-error",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			// 构造业务错误
+			err := &errorx.Errno{
+				HTTP:    400,
+				Code:    10002,
+				Message: "用户余额不足",
+				Data:    map[string]interface{}{"balance": 50, "required": 100},
+				Reason:  "当前余额50元，需要100元",
+			}
+			response.WriteResponse(r.Context(), w, err)
+		},
+	}})
+
+	// 普通错误示例：/normal-error
+	server.AddRoutes([]rest.Route{{
+		Method: http.MethodGet,
+		Path:   "/normal-error",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			// 普通 error 会被转换为 404 Not Found
+			response.WriteResponse(r.Context(), w, errorx.ErrPageNotFound)
 		},
 	}})
 

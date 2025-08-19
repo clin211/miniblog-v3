@@ -1,24 +1,29 @@
 package errorx
 
-// Code 表示业务错误码。
-//
-// 约定：
-// 1) 成功使用 CodeOK=0；
-// 2) 参数校验失败在渲染层按现有文档保持 code=0；
-// 3) 资源未找到使用 CodeNotFound=404；
-// 4) 其他通用错误提供常见的 HTTP 语义对应码，便于统一映射与检索。
-type Code int
+import "net/http"
 
-const (
-	// CodeOK 代表业务成功。
-	CodeOK Code = 0
+var (
+	// OK 代表请求成功.
+	OK = &Errno{HTTP: http.StatusOK, Code: 0, Message: "Success.", Data: nil, Reason: ""}
 
-	// 通用错误语义（与 HTTP 含义一致，便于跨传输层映射）。
-	CodeBadRequest      Code = 400
-	CodeUnauthorized    Code = 401
-	CodeForbidden       Code = 403
-	CodeNotFound        Code = 404
-	CodeConflict        Code = 409
-	CodeTooManyRequests Code = 429
-	CodeInternal        Code = 500
+	// InternalServerError 表示所有未知的服务器端错误.
+	InternalServerError = &Errno{HTTP: http.StatusInternalServerError, Code: 500001, Message: "Internal server error.", Data: nil, Reason: ""}
+
+	// ErrPageNotFound 表示路由不匹配错误.
+	ErrPageNotFound = &Errno{HTTP: http.StatusNotFound, Code: 404001, Message: "Page not found.", Data: nil, Reason: ""}
+
+	// ErrBind 表示参数绑定错误.
+	ErrBind = &Errno{HTTP: http.StatusBadRequest, Code: 400001, Message: "Error occurred while binding the request body to the struct.", Data: nil, Reason: ""}
+
+	// ErrInvalidParameter 表示所有验证失败的错误.
+	ErrInvalidParameter = &Errno{HTTP: http.StatusBadRequest, Code: 400002, Message: "Parameter verification failed.", Data: nil, Reason: ""}
+
+	// ErrSignToken 表示签发 JWT Token 时出错.
+	ErrSignToken = &Errno{HTTP: http.StatusUnauthorized, Code: 401001, Message: "Error occurred while signing the JSON web token.", Data: nil, Reason: ""}
+
+	// ErrTokenInvalid 表示 JWT Token 格式错误.
+	ErrTokenInvalid = &Errno{HTTP: http.StatusUnauthorized, Code: 401002, Message: "Token was invalid.", Data: nil, Reason: ""}
+
+	// ErrUnauthorized 表示请求没有被授权.
+	ErrUnauthorized = &Errno{HTTP: http.StatusUnauthorized, Code: 401003, Message: "Unauthorized.", Data: nil, Reason: ""}
 )
