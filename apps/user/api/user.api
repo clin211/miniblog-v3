@@ -55,9 +55,17 @@ type (
 	DeleteUserResponse {
 		Success bool `json:"success"` // 是否成功
 	}
+	LoginRequest {
+		Username string `json:"username" valid:"required,length(3|20)"` // 用户名
+		Password string `json:"password" valid:"required,length(8|32)"` // 密码
+	}
+	LoginResponse {
+		Token     string `json:"token"` // 令牌
+		ExpiresAt string `json:"expiresAt"` // 过期时间
+	}
 )
 
-service UserRpc {
+service User {
 	// Register 用户注册
 	@handler Register
 	post /user/register (RegisterRequest) returns (RegisterResponse)
@@ -73,5 +81,9 @@ service UserRpc {
 	// DeleteUser 删除用户
 	@handler DeleteUser
 	delete /user/:userId (DeleteUserRequest) returns (DeleteUserResponse)
+
+	// Login 用户登录
+	@handler Login
+	post /user/login (LoginRequest) returns (LoginResponse)
 }
 

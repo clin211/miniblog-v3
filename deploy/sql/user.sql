@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS casbin_rule;
 
 -- 用户表
 CREATE TABLE `users` (
-    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '自增 ID',
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '自增 ID',
     `user_id` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '用户ID',
     `age` INT DEFAULT 0 COMMENT '年龄',
     `avatar` VARCHAR(255) DEFAULT '' COMMENT '头像URL',
@@ -36,6 +36,8 @@ CREATE TABLE `users` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP() COMMENT '创建时间',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP() COMMENT '更新时间',
     `deleted_at` TIMESTAMP NULL COMMENT '删除时间',
+
+    PRIMARY KEY (`id`),
 
     -- 唯一索引（保证数据唯一性，必须保留）
     UNIQUE KEY uk_user_id (`user_id`),

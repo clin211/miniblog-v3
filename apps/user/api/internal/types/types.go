@@ -3,20 +3,66 @@
 
 package types
 
+type DeleteUserRequest struct {
+	UserId string `json:"userId" valid:"required"` // 用户ID
+}
+
+type DeleteUserResponse struct {
+	Success bool `json:"success"` // 是否成功
+}
+
+type GetUserRequest struct {
+	UserId string `json:"userId" valid:"required"` // 用户ID
+}
+
+type GetUserResponse struct {
+	UserId    string `json:"userId"`    // 用户ID
+	Username  string `json:"username"`  // 用户名
+	Email     string `json:"email"`     // 邮箱
+	Phone     string `json:"phone"`     // 手机号
+	Age       int    `json:"age"`       // 年龄
+	Gender    int    `json:"gender"`    // 性别
+	Avatar    string `json:"avatar"`    // 头像URL
+	Status    int    `json:"status"`    // 状态
+	CreatedAt string `json:"createdAt"` // 创建时间
+	UpdatedAt string `json:"updatedAt"` // 更新时间
+}
+
 type LoginRequest struct {
-	Email    string `json:"email" valid:"required,email"`
-	Password string `json:"password" valid:"required,length(6|32)"`
+	Username string `json:"username" valid:"required,length(3|20)"` // 用户名
+	Password string `json:"password" valid:"required,length(8|32)"` // 密码
 }
 
 type LoginResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
+	Token     string `json:"token"`     // 令牌
+	ExpiresAt string `json:"expiresAt"` // 过期时间
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email" valid:"required,email"`
-	Password string `json:"password" valid:"required,length(6|32)"`
+	Username       string `json:"username" valid:"required,length(3|100)"`    // 用户名
+	Password       string `json:"password" valid:"required,length(6|32)"`     // 密码
+	Email          string `json:"email" valid:"required,email"`               // 邮箱
+	Phone          string `json:"phone" valid:"required,length(11|20)"`       // 手机号
+	Age            int    `json:"age,optional" valid:"range(1|120)"`          // 年龄
+	Gender         int    `json:"gender,optional" valid:"range(0|3)"`         // 性别：0-未设置，1-男，2-女，3-其他
+	Avatar         string `json:"avatar,optional"`                            // 头像URL
+	RegisterSource int    `json:"registerSource,optional" valid:"range(1|6)"` // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
 }
 
 type RegisterResponse struct {
+	UserId string `json:"userId"` // 用户ID
+}
+
+type UpdateUserRequest struct {
+	UserId   string `json:"userId" valid:"required"`                 // 用户ID
+	Username string `json:"username,optional" valid:"length(3|100)"` // 用户名
+	Age      int    `json:"age,optional" valid:"range(1|120)"`       // 年龄
+	Gender   int    `json:"gender,optional" valid:"range(0|3)"`      // 性别
+	Avatar   string `json:"avatar,optional"`                         // 头像URL
+}
+
+type UpdateUserResponse struct {
+	UserId    string `json:"userId"`    // 用户ID
+	Username  string `json:"username"`  // 用户名
+	UpdatedAt string `json:"updatedAt"` // 更新时间
 }

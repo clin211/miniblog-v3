@@ -8,6 +8,8 @@
         "grpcurl",
         "Httpx",
         "miniblog",
-        "shortlink"
+        "shortlink",
+        "sqlc",
+        "sqlx"
     ]
 }

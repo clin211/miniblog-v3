@@ -1,6 +1,28 @@
 Name: user.rpc
-ListenOn: 0.0.0.0:8080
+ListenOn: 0.0.0.0:8889
 Etcd:
   Hosts:
   - 127.0.0.1:2379
   Key: user.rpc
+
+Mysql:
+  DataSource: root:j478EaZGDNPUbnXbat@tcp(localhost:3306)/miniblog_user?charset=utf8mb4&parseTime=True&loc=Local
+
+Cache:
+- Host: localhost:6379
+  Type: node
+  Pass: weZ2014P89rlTuWe
+  Key: user.rpc
+
+RedisConf:
+  Host: localhost:6379
+  Type: node
+  Pass: weZ2014P89rlTuWe
+  Key: user.rpc
+
+JWT:
+  Secret: 3C4r65TaBGU2yg5n5i7DfYeeE25vHI0k
+  ExpireHours: 24
+
+Service:
+  Name: user-rpc
