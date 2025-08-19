@@ -4,8 +4,8 @@
 -- this file is https://github.com/clin211/miniblog-v3.git.
 
 -- 创建数据库
-CREATE DATABASE IF NOT EXISTS miniblog_v3 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE miniblog_v3;
+CREATE DATABASE IF NOT EXISTS miniblog_user DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE miniblog_user;
 
 -- 删除已存在的表（按依赖关系逆序删除）
 DROP TABLE IF EXISTS user;
@@ -29,7 +29,6 @@ CREATE TABLE user (
     `failed_login_attempts` INT DEFAULT 0 COMMENT '失败登录次数，超过5次则锁定账户，登录成功后重置',
     `last_login_at` TIMESTAMP NULL COMMENT '最后登录时间',
     `last_login_ip` VARCHAR(45) COMMENT '最后登录IP',
-    `last_login_device` VARCHAR(100) COMMENT '最后登录设备',
     `is_risk` TINYINT DEFAULT 0 COMMENT '是否为风险用户；1-是,0-否',
     `register_source` TINYINT DEFAULT 1 COMMENT '注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google',
     `register_ip` VARCHAR(45) COMMENT '注册IP',
