@@ -18,6 +18,8 @@ type (
 	DeleteUserResponse = rpc.DeleteUserResponse
 	GetUserRequest     = rpc.GetUserRequest
 	GetUserResponse    = rpc.GetUserResponse
+	LoginRequest       = rpc.LoginRequest
+	LoginResponse      = rpc.LoginResponse
 	RegisterRequest    = rpc.RegisterRequest
 	RegisterResponse   = rpc.RegisterResponse
 	UpdateUserRequest  = rpc.UpdateUserRequest
@@ -32,6 +34,8 @@ type (
 		UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*UpdateUserResponse, error)
 		// DeleteUser 删除用户
 		DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error)
+		// Login 用户登录
+		Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	}
 
 	defaultUser struct {
@@ -67,4 +71,10 @@ func (m *defaultUser) UpdateUser(ctx context.Context, in *UpdateUserRequest, opt
 func (m *defaultUser) DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error) {
 	client := rpc.NewUserClient(m.cli.Conn())
 	return client.DeleteUser(ctx, in, opts...)
+}
+
+// Login 用户登录
+func (m *defaultUser) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	client := rpc.NewUserClient(m.cli.Conn())
+	return client.Login(ctx, in, opts...)
 }

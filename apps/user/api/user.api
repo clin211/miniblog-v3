@@ -56,12 +56,12 @@ type (
 		Success bool `json:"success"` // 是否成功
 	}
 	LoginRequest {
-		Username string `json:"username" valid:"required,length(3|20)"` // 用户名
-		Password string `json:"password" valid:"required,length(8|32)"` // 密码
+		Username string `json:"username" valid:"required"` // 用户名/邮箱/手机号
+		Password string `json:"password" valid:"required"` // 密码
 	}
 	LoginResponse {
-		Token     string `json:"token"` // 令牌
-		ExpiresAt string `json:"expiresAt"` // 过期时间
+		Token    string `json:"token"` // JWT Token
+		ExpireAt string `json:"expireAt"` // 过期时间
 	}
 )
 

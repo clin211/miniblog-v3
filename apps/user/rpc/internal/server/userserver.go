@@ -46,3 +46,9 @@ func (s *UserServer) DeleteUser(ctx context.Context, in *rpc.DeleteUserRequest) 
 	l := logic.NewDeleteUserLogic(ctx, s.svcCtx)
 	return l.DeleteUser(in)
 }
+
+// Login 用户登录
+func (s *UserServer) Login(ctx context.Context, in *rpc.LoginRequest) (*rpc.LoginResponse, error) {
+	l := logic.NewLoginLogic(ctx, s.svcCtx)
+	return l.Login(in)
+}
