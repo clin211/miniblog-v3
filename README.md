@@ -263,6 +263,27 @@ GET http://localhost:8099/api/user/ping
 GET http://localhost:8099/rpc/user/ping
 ```
 
+### 测试 user-api 的注册功能
+
+```sh
+curl -X POST http://localhost:8888/user/register -H "Content-Type: application/json" -d '{"username":"newuser123","password":"password123","email":"newuser123@example.com","phone":"13800138999","age":25,"gender":1,"avatar":"https://example.com/avatar6.jpg","registerSource":1}'
+```
+
+### 使用 grpcurl 测试 RPC 注册接口
+
+前提：已安装 grpcurl，且用户 RPC 服务在本地 8889 端口运行（README 前文已配置端口映射 8889）。
+
+```bash
+grpcurl -plaintext -d '{"username":"alice","password":"Passw0rd!","email":"alice@example.com","phone":"13800138000","age":25,"gender":1,"avatar":"https://example.com/avatar.png","register_source":1,"wechat_openid":""}' localhost:8889 rpc.User/Register
+```
+
+说明：
+
+- -plaintext：本地无 TLS
+- -import-path 和 -proto：使用仓库中的 proto 文件进行请求编解码（不依赖服务端反射）
+- 方法名：rpc.User/Register（对应 package: rpc, service: User, method: Register）
+- 服务地址：localhost:8889（README 已公开映射）
+
 ## 开发指南
 
 ### 1. 生成 API 服务代码

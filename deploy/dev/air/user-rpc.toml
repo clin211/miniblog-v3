@@ -3,9 +3,9 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-args_bin = ["-f", "./apps/user/rpc/etc/rpc-api.yaml"]
+args_bin = ["-f", "./apps/user/rpc/etc/user.yaml"]
 bin = "./tmp/user-rpc"
-cmd = "go build -o ./tmp/user-rpc ./apps/user/rpc/rpc.go"
+cmd = "go build -o ./tmp/user-rpc ./apps/user/rpc/user.go"
 delay = 1000
 exclude_dir = [
     "assets",

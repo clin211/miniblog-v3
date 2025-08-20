@@ -47,6 +47,7 @@ type RegisterRequest struct {
 	Gender         int    `json:"gender,optional" valid:"range(0|3)"`         // 性别：0-未设置，1-男，2-女，3-其他
 	Avatar         string `json:"avatar,optional"`                            // 头像URL
 	RegisterSource int    `json:"registerSource,optional" valid:"range(1|6)"` // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
+	WechatOpenid   string `json:"wechatOpenid,optional"`                      // 微信OpenID
 }
 
 type RegisterResponse struct {

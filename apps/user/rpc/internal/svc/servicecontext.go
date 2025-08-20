@@ -9,6 +9,8 @@ import (
 type ServiceContext struct {
 	Config    config.Config
 	UserModel models.UsersModel
+	// 添加原始数据库连接用于事务处理
+	DB        sqlx.SqlConn
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -21,5 +23,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:    c,
 		UserModel: userModel,
+		DB:        conn, // 保存原始连接
 	}
 }

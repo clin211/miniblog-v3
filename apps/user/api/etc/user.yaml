@@ -1,3 +1,8 @@
 Name: User
 Host: 0.0.0.0
 Port: 8888
+
+UserRpc:
+  Endpoints:
+  - user-rpc:8889
+  NonBlock: true

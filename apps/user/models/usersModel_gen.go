@@ -40,7 +40,7 @@ type (
 		FindOneByPhone(ctx context.Context, phone string) (*Users, error)
 		FindOneByUserId(ctx context.Context, userId string) (*Users, error)
 		FindOneByUsername(ctx context.Context, username string) (*Users, error)
-		FindOneByWechatOpenid(ctx context.Context, wechatOpenid string) (*Users, error)
+		FindOneByWechatOpenid(ctx context.Context, wechatOpenid sql.NullString) (*Users, error)
 		Update(ctx context.Context, data *Users) error
 		Delete(ctx context.Context, id int64) error
 	}
@@ -51,29 +51,29 @@ type (
 	}
 
 	Users struct {
-		Id                  int64        `db:"id"`                    // 自增 ID
-		UserId              string       `db:"user_id"`               // 用户ID
-		Age                 int64        `db:"age"`                   // 年龄
-		Avatar              string       `db:"avatar"`                // 头像URL
-		Username            string       `db:"username"`              // 用户名
-		Password            string       `db:"password"`              // 密码
-		PasswordUpdatedAt   sql.NullTime `db:"password_updated_at"`   // 密码更新时间
-		Email               string       `db:"email"`                 // 邮箱
-		EmailVerified       int64        `db:"email_verified"`        // 邮箱是否已验证；1-已验证,0-未验证
-		Phone               string       `db:"phone"`                 // 手机号
-		PhoneVerified       int64        `db:"phone_verified"`        // 手机号是否已验证；1-已验证,0-未验证
-		Gender              int64        `db:"gender"`                // 性别：0-未设置，1-男，2-女，3-其他
-		Status              int64        `db:"status"`                // 状态：1-正常，0-禁用
-		FailedLoginAttempts int64        `db:"failed_login_attempts"` // 失败登录次数，超过5次则锁定账户，登录成功后重置
-		LastLoginAt         sql.NullTime `db:"last_login_at"`         // 最后登录时间
-		LastLoginIp         string       `db:"last_login_ip"`         // 最后登录IP
-		IsRisk              int64        `db:"is_risk"`               // 是否为风险用户；1-是,0-否
-		RegisterSource      int64        `db:"register_source"`       // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
-		RegisterIp          string       `db:"register_ip"`           // 注册IP
-		WechatOpenid        string       `db:"wechat_openid"`         // 微信OpenID
-		CreatedAt           time.Time    `db:"created_at"`            // 创建时间
-		UpdatedAt           time.Time    `db:"updated_at"`            // 更新时间
-		DeletedAt           sql.NullTime `db:"deleted_at"`            // 删除时间
+		Id                  int64          `db:"id"`                    // 自增 ID
+		UserId              string         `db:"user_id"`               // 用户ID
+		Age                 int64          `db:"age"`                   // 年龄
+		Avatar              string         `db:"avatar"`                // 头像URL
+		Username            string         `db:"username"`              // 用户名
+		Password            string         `db:"password"`              // 密码
+		PasswordUpdatedAt   sql.NullTime   `db:"password_updated_at"`   // 密码更新时间
+		Email               string         `db:"email"`                 // 邮箱
+		EmailVerified       int64          `db:"email_verified"`        // 邮箱是否已验证；1-已验证,0-未验证
+		Phone               string         `db:"phone"`                 // 手机号
+		PhoneVerified       int64          `db:"phone_verified"`        // 手机号是否已验证；1-已验证,0-未验证
+		Gender              int64          `db:"gender"`                // 性别：0-未设置，1-男，2-女，3-其他
+		Status              int64          `db:"status"`                // 状态：1-正常，0-禁用
+		FailedLoginAttempts int64          `db:"failed_login_attempts"` // 失败登录次数，超过5次则锁定账户，登录成功后重置
+		LastLoginAt         sql.NullTime   `db:"last_login_at"`         // 最后登录时间
+		LastLoginIp         string         `db:"last_login_ip"`         // 最后登录IP
+		IsRisk              int64          `db:"is_risk"`               // 是否为风险用户；1-是,0-否
+		RegisterSource      int64          `db:"register_source"`       // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
+		RegisterIp          string         `db:"register_ip"`           // 注册IP
+		WechatOpenid        sql.NullString `db:"wechat_openid"`         // 微信OpenID
+		CreatedAt           time.Time      `db:"created_at"`            // 创建时间
+		UpdatedAt           time.Time      `db:"updated_at"`            // 更新时间
+		DeletedAt           sql.NullTime   `db:"deleted_at"`            // 删除时间
 	}
 )
 
@@ -200,7 +200,7 @@ func (m *defaultUsersModel) FindOneByUsername(ctx context.Context, username stri
 	}
 }
 
-func (m *defaultUsersModel) FindOneByWechatOpenid(ctx context.Context, wechatOpenid string) (*Users, error) {
+func (m *defaultUsersModel) FindOneByWechatOpenid(ctx context.Context, wechatOpenid sql.NullString) (*Users, error) {
 	usersWechatOpenidKey := fmt.Sprintf("%s%v", cacheUsersWechatOpenidPrefix, wechatOpenid)
 	var resp Users
 	err := m.QueryRowIndexCtx(ctx, &resp, usersWechatOpenidKey, m.formatPrimary, func(ctx context.Context, conn sqlx.SqlConn, v any) (i any, e error) {

@@ -47,3 +47,5 @@ scripts/
 
 # 配置文件（在容器中重新挂载）
 .env*
+_output/
+examples/

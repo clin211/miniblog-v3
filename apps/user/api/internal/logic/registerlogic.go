@@ -5,6 +5,7 @@ import (
 
 	"github.com/clin211/miniblog-v3/apps/user/api/internal/svc"
 	"github.com/clin211/miniblog-v3/apps/user/api/internal/types"
+	"github.com/clin211/miniblog-v3/apps/user/rpc/pb/rpc"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -24,7 +25,23 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 }
 
 func (l *RegisterLogic) Register(req *types.RegisterRequest) (resp *types.RegisterResponse, err error) {
-	// todo: add your logic here and delete this line
+	// 调用 RPC 服务进行用户注册
+	rpcResp, err := l.svcCtx.UserRpc.Register(l.ctx, &rpc.RegisterRequest{
+		Username:       req.Username,
+		Password:       req.Password,
+		Email:          req.Email,
+		Phone:          req.Phone,
+		Age:            int32(req.Age),
+		Gender:         int32(req.Gender),
+		Avatar:         req.Avatar,
+		RegisterSource: int32(req.RegisterSource),
+		WechatOpenid:   req.WechatOpenid,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	return &types.RegisterResponse{
+		UserId: rpcResp.UserId,
+	}, nil
 }

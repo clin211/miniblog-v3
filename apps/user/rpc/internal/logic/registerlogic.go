@@ -2,18 +2,18 @@ package logic
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
+	"database/sql"
 	"regexp"
-	"time"
 
 	"github.com/clin211/miniblog-v3/apps/user/models"
 	"github.com/clin211/miniblog-v3/apps/user/rpc/internal/svc"
 	"github.com/clin211/miniblog-v3/apps/user/rpc/pb/rpc"
 	"github.com/clin211/miniblog-v3/pkg/encrypt"
 	"github.com/clin211/miniblog-v3/pkg/errorx"
+	"github.com/clin211/miniblog-v3/pkg/rid"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 type RegisterLogic struct {
@@ -50,35 +50,33 @@ func (l *RegisterLogic) Register(in *rpc.RegisterRequest) (*rpc.RegisterResponse
 	}
 
 	// 4. 生成用户ID
-	userId := l.generateUserId()
+	userId := rid.UserID.New()
 
-	// 5. 创建用户记录
+	// 5. 使用模型构造用户实体并插入
 	user := &models.Users{
-		UserId:         userId,
-		Username:       in.Username,
-		Password:       hashedPassword,
-		Email:          in.Email,
-		Phone:          in.Phone,
-		Age:            int64(in.Age),
-		Gender:         int64(in.Gender),
-		Avatar:         in.Avatar,
-		RegisterSource: int64(in.RegisterSource),
-		WechatOpenid:   in.WechatOpenid,
-		Status:         1, // 1-正常状态
-		EmailVerified:  0, // 0-未验证
-		PhoneVerified:  0, // 0-未验证
-		IsRisk:         0, // 0-非风险用户
+		UserId:              userId,
+		Username:            in.Username,
+		Password:            hashedPassword,
+		Email:               in.Email,
+		Phone:               in.Phone,
+		Age:                 int64(in.Age),
+		Gender:              int64(in.Gender),
+		Avatar:              in.Avatar,
+		RegisterSource:      int64(in.RegisterSource),
+		WechatOpenid:        l.getWechatOpenid(in.WechatOpenid),
+		Status:              1, // 1-正常状态
+		EmailVerified:       0, // 0-未验证
+		PhoneVerified:       0, // 0-未验证
+		IsRisk:              0, // 0-非风险用户
 		FailedLoginAttempts: 0, // 0-失败登录次数
 	}
 
-	// 6. 保存到数据库
 	if _, err := l.svcCtx.UserModel.Insert(l.ctx, user); err != nil {
-		logx.Errorf("用户创建失败: %v", err)
 		return nil, errorx.InternalServerError.SetMessage("用户创建失败")
 	}
 
-	// 7. 记录注册日志
-	logx.Infof("用户注册成功: user_id=%s, username=%s, email=%s", userId, in.Username, in.Email)
+	// 6. 记录注册日志
+	logx.Infof("用户注册成功: %s, %s, %s", userId, in.Username, in.Email)
 
 	return &rpc.RegisterResponse{
 		UserId: userId,
@@ -155,55 +153,77 @@ func (l *RegisterLogic) validateRegisterRequest(in *rpc.RegisterRequest) error {
 
 // checkUserUniqueness 检查用户唯一性
 func (l *RegisterLogic) checkUserUniqueness(in *rpc.RegisterRequest) error {
-	// 检查用户名是否已存在
-	_, err := l.svcCtx.UserModel.FindOneByUsername(l.ctx, in.Username)
-	if err == nil {
-		return errorx.ErrUserAlreadyExists.SetMessage("用户名已存在")
-	}
-	if err != errorx.ErrResourceNotFound {
-		logx.Errorf("检查用户名唯一性失败: %v", err)
-		return errorx.InternalServerError.SetMessage("检查用户名唯一性失败")
+	type uniqueCheck struct {
+		name    string
+		query   func() error
+		onExist error
 	}
 
-	// 检查邮箱是否已存在
-	_, err = l.svcCtx.UserModel.FindOneByEmail(l.ctx, in.Email)
-	if err == nil {
-		return errorx.ErrUserAlreadyExists.SetMessage("邮箱已存在")
-	}
-	if err != errorx.ErrResourceNotFound {
-		logx.Errorf("检查邮箱唯一性失败: %v", err)
-		return errorx.InternalServerError.SetMessage("检查邮箱唯一性失败")
-	}
-
-	// 检查手机号是否已存在
-	_, err = l.svcCtx.UserModel.FindOneByPhone(l.ctx, in.Phone)
-	if err == nil {
-		return errorx.ErrUserAlreadyExists.SetMessage("手机号已存在")
-	}
-	if err != errorx.ErrResourceNotFound {
-		logx.Errorf("检查手机号唯一性失败: %v", err)
-		return errorx.InternalServerError.SetMessage("检查手机号唯一性失败")
-	}
-
-	// 如果有微信OpenID，检查是否已存在
-	if in.WechatOpenid != "" {
-		_, err = l.svcCtx.UserModel.FindOneByWechatOpenid(l.ctx, in.WechatOpenid)
-		if err == nil {
-			return errorx.ErrUserAlreadyExists.SetMessage("微信账号已存在")
+	// 统一处理查询结果：nil=存在、ErrNotFound=不存在、其他=查询异常
+	existsOrErr := func(name string, query func() error, onExist error) error {
+		if err := query(); err != nil {
+			if err == sqlx.ErrNotFound {
+				return nil
+			}
+			logx.Errorf("检查%s唯一性失败: %v", name, err)
+			return errorx.InternalServerError.SetMessage("%s", "检查"+name+"唯一性失败")
 		}
-		if err != errorx.ErrResourceNotFound {
-			logx.Errorf("检查微信OpenID唯一性失败: %v", err)
-			return errorx.InternalServerError.SetMessage("检查微信OpenID唯一性失败")
+		return onExist
+	}
+
+	checks := []uniqueCheck{
+		{
+			name: "用户名",
+			query: func() error {
+				_, err := l.svcCtx.UserModel.FindOneByUsername(l.ctx, in.Username)
+				return err
+			},
+			onExist: errorx.ErrUserAlreadyExists.SetMessage("用户名已存在"),
+		},
+		{
+			name: "邮箱",
+			query: func() error {
+				_, err := l.svcCtx.UserModel.FindOneByEmail(l.ctx, in.Email)
+				return err
+			},
+			onExist: errorx.ErrUserAlreadyExists.SetMessage("邮箱已存在"),
+		},
+		{
+			name: "手机号",
+			query: func() error {
+				_, err := l.svcCtx.UserModel.FindOneByPhone(l.ctx, in.Phone)
+				return err
+			},
+			onExist: errorx.ErrUserAlreadyExists.SetMessage("手机号已存在"),
+		},
+	}
+
+	// 可选检查：仅当 WechatOpenid 非空时加入
+	if in.WechatOpenid != "" {
+		checks = append(checks, uniqueCheck{
+			name: "微信OpenID",
+			query: func() error {
+				wechatOpenid := sql.NullString{String: in.WechatOpenid, Valid: true}
+				_, err := l.svcCtx.UserModel.FindOneByWechatOpenid(l.ctx, wechatOpenid)
+				return err
+			},
+			onExist: errorx.ErrUserAlreadyExists.SetMessage("微信账号已存在"),
+		})
+	}
+
+	for _, c := range checks {
+		if err := existsOrErr(c.name, c.query, c.onExist); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-// generateUserId 生成用户ID
-func (l *RegisterLogic) generateUserId() string {
-	// 生成时间戳 + 随机数的用户ID
-	timestamp := time.Now().Unix()
-	randomNum := rand.Intn(10000)
-	return fmt.Sprintf("user_%d_%04d", timestamp, randomNum)
+// getWechatOpenid 处理微信OpenID字段，空字符串返回NULL
+func (l *RegisterLogic) getWechatOpenid(wechatOpenid string) sql.NullString {
+	if wechatOpenid == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: wechatOpenid, Valid: true}
 }

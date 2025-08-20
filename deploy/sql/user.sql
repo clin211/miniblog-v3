@@ -32,7 +32,7 @@ CREATE TABLE `users` (
     `is_risk` TINYINT DEFAULT 0 COMMENT '是否为风险用户；1-是,0-否',
     `register_source` TINYINT DEFAULT 1 COMMENT '注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google',
     `register_ip` VARCHAR(45) DEFAULT '' COMMENT '注册IP',
-    `wechat_openid` VARCHAR(100) DEFAULT '' COMMENT '微信OpenID',
+    `wechat_openid` VARCHAR(100) NULL COMMENT '微信OpenID',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP() COMMENT '创建时间',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP() COMMENT '更新时间',
     `deleted_at` TIMESTAMP NULL COMMENT '删除时间',

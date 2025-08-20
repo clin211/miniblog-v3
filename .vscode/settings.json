@@ -4,12 +4,18 @@
         "asaskevich",
         "Errno",
         "errorx",
+        "goimports",
+        "golangci",
         "govalidator",
         "grpcurl",
         "Httpx",
+        "Infof",
+        "logc",
         "miniblog",
         "shortlink",
+        "Sonyflake",
         "sqlc",
-        "sqlx"
+        "sqlx",
+        "zrpc"
     ]
 }
