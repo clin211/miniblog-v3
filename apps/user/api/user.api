@@ -1,5 +1,11 @@
 syntax = "v1"
 
+info (
+	title:       "用户 API" // 对应 swagger 中的标题
+	description: "用户 api 生成 swagger..." // 对应 swagger 中的描述
+	version:     "v1" // 对应 swagger 中的版本
+)
+
 type (
 	// RegisterRequest 用户注册请求
 	RegisterRequest {
@@ -17,9 +23,7 @@ type (
 		UserId string `json:"userId"` // 用户ID
 	}
 	// GetUserRequest 获取用户信息请求
-	GetUserRequest {
-		UserId string `json:"userId" valid:"required"` // 用户ID
-	}
+	GetUserRequest  {}
 	// GetUserResponse 获取用户信息响应
 	GetUserResponse {
 		UserId    string `json:"userId"` // 用户ID
@@ -72,15 +76,15 @@ service User {
 
 	// GetUser 获取用户信息
 	@handler GetUser
-	get /user/:userId (GetUserRequest) returns (GetUserResponse)
+	get /user (GetUserRequest) returns (GetUserResponse)
 
 	// UpdateUser 更新用户信息
 	@handler UpdateUser
-	put /user/:userId (UpdateUserRequest) returns (UpdateUserResponse)
+	put /user (UpdateUserRequest) returns (UpdateUserResponse)
 
 	// DeleteUser 删除用户
 	@handler DeleteUser
-	delete /user/:userId (DeleteUserRequest) returns (DeleteUserResponse)
+	delete /user (DeleteUserRequest) returns (DeleteUserResponse)
 
 	// Login 用户登录
 	@handler Login

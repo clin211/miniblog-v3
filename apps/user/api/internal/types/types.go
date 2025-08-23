@@ -12,7 +12,6 @@ type DeleteUserResponse struct {
 }
 
 type GetUserRequest struct {
-	UserId string `json:"userId" valid:"required"` // 用户ID
 }
 
 type GetUserResponse struct {
@@ -29,13 +28,13 @@ type GetUserResponse struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"username" valid:"required,length(3|20)"` // 用户名
-	Password string `json:"password" valid:"required,length(8|32)"` // 密码
+	Username string `json:"username" valid:"required"` // 用户名/邮箱/手机号
+	Password string `json:"password" valid:"required"` // 密码
 }
 
 type LoginResponse struct {
-	Token     string `json:"token"`     // 令牌
-	ExpiresAt string `json:"expiresAt"` // 过期时间
+	Token    string `json:"token"`    // JWT Token
+	ExpireAt string `json:"expireAt"` // 过期时间
 }
 
 type RegisterRequest struct {
@@ -47,7 +46,6 @@ type RegisterRequest struct {
 	Gender         int    `json:"gender,optional" valid:"range(0|3)"`         // 性别：0-未设置，1-男，2-女，3-其他
 	Avatar         string `json:"avatar,optional"`                            // 头像URL
 	RegisterSource int    `json:"registerSource,optional" valid:"range(1|6)"` // 注册来源：1-web，2-app，3-wechat，4-qq，5-github，6-google
-	WechatOpenid   string `json:"wechatOpenid,optional"`                      // 微信OpenID
 }
 
 type RegisterResponse struct {

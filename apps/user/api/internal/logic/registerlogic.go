@@ -6,6 +6,7 @@ import (
 	"github.com/clin211/miniblog-v3/apps/user/api/internal/svc"
 	"github.com/clin211/miniblog-v3/apps/user/api/internal/types"
 	"github.com/clin211/miniblog-v3/apps/user/rpc/pb/rpc"
+	"github.com/clin211/miniblog-v3/pkg/errorx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -35,10 +36,10 @@ func (l *RegisterLogic) Register(req *types.RegisterRequest) (resp *types.Regist
 		Gender:         int32(req.Gender),
 		Avatar:         req.Avatar,
 		RegisterSource: int32(req.RegisterSource),
-		WechatOpenid:   req.WechatOpenid,
 	})
 	if err != nil {
-		return nil, err
+		// 将 gRPC 错误转换为 errorx 错误
+		return nil, errorx.FromGRPCError(err)
 	}
 
 	return &types.RegisterResponse{

@@ -34,19 +34,19 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 func (l *RegisterLogic) Register(in *rpc.RegisterRequest) (*rpc.RegisterResponse, error) {
 	// 1. 参数验证
 	if err := l.validateRegisterRequest(in); err != nil {
-		return nil, err
+		return nil, errorx.ToGRPCError(err)
 	}
 
 	// 2. 检查用户唯一性
 	if err := l.checkUserUniqueness(in); err != nil {
-		return nil, err
+		return nil, errorx.ToGRPCError(err)
 	}
 
 	// 3. 密码加密
 	hashedPassword, err := encrypt.Encrypt(in.Password)
 	if err != nil {
 		logx.Errorf("密码加密失败: %v", err)
-		return nil, errorx.InternalServerError.SetMessage("密码加密失败")
+		return nil, errorx.ToGRPCError(errorx.InternalServerError.SetMessage("密码加密失败"))
 	}
 
 	// 4. 生成用户ID
@@ -72,7 +72,7 @@ func (l *RegisterLogic) Register(in *rpc.RegisterRequest) (*rpc.RegisterResponse
 	}
 
 	if _, err := l.svcCtx.UserModel.Insert(l.ctx, user); err != nil {
-		return nil, errorx.InternalServerError.SetMessage("用户创建失败")
+		return nil, errorx.ToGRPCError(errorx.InternalServerError.SetMessage("用户创建失败"))
 	}
 
 	// 6. 记录注册日志

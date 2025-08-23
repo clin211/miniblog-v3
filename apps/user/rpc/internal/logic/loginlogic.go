@@ -36,37 +36,37 @@ func NewLoginLogic(ctx context.Context, svcCtx *svc.ServiceContext) *LoginLogic 
 func (l *LoginLogic) Login(in *rpc.LoginRequest) (*rpc.LoginResponse, error) {
 	// 1. 参数验证
 	if err := l.validateLoginRequest(in); err != nil {
-		return nil, err
+		return nil, errorx.ToGRPCError(err)
 	}
 
 	// 2. 检查账户锁定状态
 	if l.isAccountLocked(in.Username) {
-		return nil, errorx.ErrUnauthorized.SetMessage("账户已被锁定，请30分钟后重试")
+		return nil, errorx.ToGRPCError(errorx.ErrUnauthorized.SetMessage("账户已被锁定，请30分钟后重试"))
 	}
 
 	// 3. 查询用户信息
 	user, err := l.getUserByUsername(in.Username)
 	if err != nil {
 		l.recordFailedLogin(in.Username)
-		return nil, errorx.ErrPasswordIncorrect.SetMessage("用户名或密码错误")
+		return nil, errorx.ToGRPCError(errorx.ErrPasswordIncorrect.SetMessage("用户名或密码错误"))
 	}
 
 	// 4. 验证密码
 	if err := encrypt.Compare(user.Password, in.Password); err != nil {
 		l.recordFailedLogin(in.Username)
-		return nil, errorx.ErrPasswordIncorrect.SetMessage("用户名或密码错误")
+		return nil, errorx.ToGRPCError(errorx.ErrPasswordIncorrect.SetMessage("用户名或密码错误"))
 	}
 
 	// 5. 检查用户状态
 	if user.Status != 1 {
-		return nil, errorx.ErrUserDisabled.SetMessage("账户已被禁用")
+		return nil, errorx.ToGRPCError(errorx.ErrUserDisabled.SetMessage("账户已被禁用"))
 	}
 
 	// 6. 生成 JWT Token
 	tokenStr, expireAt, err := token.Sign(user.UserId)
 	if err != nil {
 		logx.Errorf("生成Token失败: %v", err)
-		return nil, errorx.ErrSignToken.SetMessage("生成Token失败")
+		return nil, errorx.ToGRPCError(errorx.ErrSignToken.SetMessage("生成Token失败"))
 	}
 
 	// 7. 更新登录信息

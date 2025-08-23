@@ -33,18 +33,13 @@ func (l *LoginLogic) Login(req *types.LoginRequest) (resp *types.LoginResponse, 
 	})
 
 	if err != nil {
-		// 处理业务错误
-		if e, ok := err.(*errorx.Errno); ok {
-			return nil, e
-		}
-		// 处理其他错误
-		logx.Errorf("调用登录RPC失败: %v", err)
-		return nil, errorx.InternalServerError.SetMessage("登录失败")
+		// 将 gRPC 错误转换为 errorx 错误
+		return nil, errorx.FromGRPCError(err)
 	}
 
 	// 2. 构造响应
 	return &types.LoginResponse{
-		Token:     rpcResp.Token,
-		ExpiresAt: rpcResp.ExpireAt,
+		Token:    rpcResp.Token,
+		ExpireAt: rpcResp.ExpireAt,
 	}, nil
 }

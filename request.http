@@ -1,5 +1,8 @@
 # MiniBlog User API 测试请求
 
+# 定义全局变量
+@auth_token = {{$processEnv AUTH_TOKEN}}
+
 ### 网关健康检查
 GET http://localhost:8099/health
 Content-Type: application/json
@@ -7,10 +10,48 @@ Content-Type: application/json
 ###
 
 ### 测试用户登录API - 通过网关访问
+# 登录成功后会返回token，我们将token保存到变量中
 POST http://localhost:8099/api/user/login
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "password": "123456"
+    "username": "alice",
+    "password": "Passw0rd!"
 }
+
+> {%
+    if (response.status === 200) {
+        const body = JSON.parse(response.body);
+        if (body.code === 0 && body.data && body.data.token) {
+            client.global.set("AUTH_TOKEN", body.data.token);
+            console.log("Token saved:", body.data.token);
+        }
+    }
+%}
+
+###
+
+### 用户注册API
+POST http://localhost:8099/api/user/register
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "Passw0rd123",
+    "email": "testuser@example.com",
+    "phone": "13800138000",
+    "age": 25,
+    "gender": 1,
+    "avatar": "https://example.com/avatar.jpg",
+    "registerSource": 1
+}
+
+###
+
+### 获取用户信息API - 需要认证
+# 使用登录接口返回的token进行认证
+GET http://localhost:8099/api/user/
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+###

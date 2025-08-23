@@ -12,23 +12,33 @@ import (
 )
 
 func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
+	// 需要认证的路由组
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.AuthnMiddleware},
+			[]rest.Route{
+				{
+					Method:  http.MethodGet,
+					Path:    "/user",
+					Handler: GetUserHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/user",
+					Handler: UpdateUserHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodDelete,
+					Path:    "/user",
+					Handler: DeleteUserHandler(serverCtx),
+				},
+			}...,
+		),
+	)
+
+	// 不需要认证的路由组（登录和注册）
 	server.AddRoutes(
 		[]rest.Route{
-			{
-				Method:  http.MethodGet,
-				Path:    "/user/:userId",
-				Handler: GetUserHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPut,
-				Path:    "/user/:userId",
-				Handler: UpdateUserHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodDelete,
-				Path:    "/user/:userId",
-				Handler: DeleteUserHandler(serverCtx),
-			},
 			{
 				Method:  http.MethodPost,
 				Path:    "/user/login",

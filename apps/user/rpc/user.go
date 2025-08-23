@@ -8,6 +8,7 @@ import (
 	"github.com/clin211/miniblog-v3/apps/user/rpc/internal/server"
 	"github.com/clin211/miniblog-v3/apps/user/rpc/internal/svc"
 	"github.com/clin211/miniblog-v3/apps/user/rpc/pb/rpc"
+	"github.com/clin211/miniblog-v3/pkg/middleware"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -45,6 +46,9 @@ func main() {
 		}
 	})
 	defer s.Stop()
+
+	// 添加gRPC拦截器
+	s.AddUnaryInterceptors(middleware.AuthnInterceptor())
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	s.Start()
