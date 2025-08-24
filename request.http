@@ -55,3 +55,31 @@ Authorization: Bearer {{auth_token}}
 Content-Type: application/json
 
 ###
+
+### 更新用户信息API - 需要认证
+# 更新用户的基本信息
+PUT http://localhost:8099/api/user/
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+    "userId": "mu-nju8c0",
+    "username": "alice_updated",
+    "age": 26,
+    "gender": 1,
+    "avatar": "https://example.com/new_avatar.jpg"
+}
+
+###
+
+### 删除用户API - 需要认证
+# 删除当前用户账户（软删除）
+DELETE http://localhost:8099/api/user/
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+    "userId": "mu-nju8c0"
+}
+
+###

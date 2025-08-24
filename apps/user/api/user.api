@@ -56,9 +56,7 @@ type (
 		UserId string `json:"userId" valid:"required"` // 用户ID
 	}
 	// DeleteUserResponse 删除用户响应
-	DeleteUserResponse {
-		Success bool `json:"success"` // 是否成功
-	}
+	DeleteUserResponse  {}
 	LoginRequest {
 		Username string `json:"username" valid:"required"` // 用户名/邮箱/手机号
 		Password string `json:"password" valid:"required"` // 密码

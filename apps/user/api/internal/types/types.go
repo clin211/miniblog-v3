@@ -7,9 +7,7 @@ type DeleteUserRequest struct {
 	UserId string `json:"userId" valid:"required"` // 用户ID
 }
 
-type DeleteUserResponse struct {
-	Success bool `json:"success"` // 是否成功
-}
+type DeleteUserResponse struct{}
 
 type GetUserRequest struct {
 }
