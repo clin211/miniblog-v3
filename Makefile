@@ -1,5 +1,5 @@
 # Go项目构建工具
-.PHONY: fmt lint test build clean install-tools dev dev-fg dev-stop dev-clean dev-logs dev-restart dev-status env-start env-stop env-clean
+.PHONY: fmt lint test build clean install-tools dev dev-fg dev-stop dev-clean dev-logs dev-restart dev-status env-start env-stop env-clean add-copyright
 
 # 项目根目录
 ROOT_DIR := $(shell pwd)
@@ -82,3 +82,6 @@ clean:
 	rm -rf $(OUTPUT_DIR)
 	rm -rf $(ROOT_DIR)/tmp
 	@echo "清理完成！"
+
+add-copyright: # 添加版权头信息.
+	@addlicense -v -f $(ROOT_DIR)/boilerplate.txt $(ROOT_DIR) --skip-dirs=third_party,vendor,docs.deploy,logs,tmp,$(OUTPUT_DIR) --skip-files=\.pb\.go$
