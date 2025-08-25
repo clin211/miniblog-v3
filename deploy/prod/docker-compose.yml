@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # user-rpc 服务
+  user-rpc:
+    image: ${DOCKER_REGISTRY:-clin211}/miniblog-user-rpc:${IMAGE_TAG:-latest}
+    container_name: miniblog-user-rpc
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./logs/user-rpc:/app/logs
+    ports:
+      - "8080:8080"
+    networks:
+      - miniblog-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.docker.compose.project=miniblog-apps"
+      - "com.docker.compose.service=user-rpc"
+
+  # user-api 服务
+  user-api:
+    image: ${DOCKER_REGISTRY:-clin211}/miniblog-user-api:${IMAGE_TAG:-latest}
+    container_name: miniblog-user-api
+    restart: unless-stopped
+    depends_on:
+      user-rpc:
+        condition: service_healthy
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./logs/user-api:/app/logs
+    ports:
+      - "8888:8888"
+    networks:
+      - miniblog-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.docker.compose.project=miniblog-apps"
+      - "com.docker.compose.service=user-api"
+
+networks:
+  miniblog-network:
+    external: true
+    name: miniblog-network

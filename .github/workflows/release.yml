@@ -1,0 +1,251 @@
+name: Release CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_USER_API: ${{ github.repository }}/miniblog-user-api
+  IMAGE_NAME_USER_RPC: ${{ github.repository }}/miniblog-user-rpc
+
+jobs:
+  # 代码质量检查
+  code-quality:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Go 环境
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.2'
+          cache: true
+
+      - name: 运行代码检查
+        run: |
+          echo "运行 go mod tidy..."
+          go mod tidy
+
+          echo "运行 go vet..."
+          go vet ./...
+
+          echo "运行 go fmt 检查..."
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "代码格式不正确，请运行 go fmt ./..."
+            gofmt -s -l .
+            exit 1
+          fi
+
+          echo "代码质量检查通过"
+
+  # 构建和推送 Docker 镜像
+  build-and-push:
+    name: 构建和推送镜像
+    needs: code-quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录到容器注册表
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 提取元数据
+        id: meta-user-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_USER_API }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: 提取元数据
+        id: meta-user-rpc
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_USER_RPC }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: 构建并推送 user-api 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./deploy/prod/Dockerfile.user-api
+          push: true
+          tags: ${{ steps.meta-user-api.outputs.tags }}
+          labels: ${{ steps.meta-user-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 构建并推送 user-rpc 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./deploy/prod/Dockerfile.user-rpc
+          push: true
+          tags: ${{ steps.meta-user-rpc.outputs.tags }}
+          labels: ${{ steps.meta-user-rpc.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 输出镜像信息
+        run: |
+          echo "User API 镜像: ${{ steps.meta-user-api.outputs.tags }}"
+          echo "User RPC 镜像: ${{ steps.meta-user-rpc.outputs.tags }}"
+
+  # 部署到服务器
+  deploy:
+    name: 部署到服务器
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 SSH 密钥
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 添加服务器到已知主机
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 创建部署目录
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            mkdir -p ${{ secrets.DEPLOY_PATH }}/miniblog-v3
+            mkdir -p ${{ secrets.DEPLOY_PATH }}/miniblog-v3/logs
+            mkdir -p ${{ secrets.DEPLOY_PATH }}/miniblog-v3/nginx
+          "
+
+      - name: 上传部署文件
+        run: |
+          # 上传 docker-compose 文件
+          scp deploy/prod/docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+
+          # 上传环境变量文件
+          scp deploy/prod/env.example ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/.env
+
+                    # 上传部署脚本
+          scp deploy/prod/deploy.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+
+                      # 上传基础设施配置和管理脚本
+            scp deploy/prod/docker-compose.env.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+          scp deploy/prod/infrastructure-manager.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+          scp deploy/prod/kafka-manager.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+
+          # 上传 SQL 文件
+          scp deploy/sql/user.sql ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/sql/
+
+          # 上传 Nginx 配置和管理脚本
+          scp -r deploy/prod/nginx/conf.d ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/nginx/
+          scp deploy/prod/nginx-manager.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+
+      - name: 更新环境变量
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cd ${{ secrets.DEPLOY_PATH }}/miniblog-v3
+            sed -i 's|DOCKER_REGISTRY=clin211|DOCKER_REGISTRY=${{ env.REGISTRY }}/${{ github.repository_owner }}|g' .env
+            sed -i 's|IMAGE_TAG=latest|IMAGE_TAG=release|g' .env
+          "
+
+      - name: 执行部署
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cd ${{ secrets.DEPLOY_PATH }}/miniblog-v3
+            chmod +x deploy.sh
+            chmod +x infrastructure-manager.sh
+            chmod +x kafka-manager.sh
+            chmod +x nginx-manager.sh
+            chmod +x nginx/service-manager.sh
+            ./deploy.sh
+          "
+
+      - name: 验证部署
+        run: |
+          echo "等待服务启动..."
+          sleep 30
+
+          # 检查服务状态
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cd ${{ secrets.DEPLOY_PATH }}/miniblog-v3
+            docker-compose ps
+          "
+
+          # 健康检查
+          echo "执行健康检查..."
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            curl -f http://localhost:8888/health || echo 'User API 健康检查失败'
+            curl -f http://localhost:8080/health || echo 'User RPC 健康检查失败'
+          "
+
+  # 通知部署结果
+  notify:
+    name: 部署通知
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 部署成功通知
+        if: needs.deploy.result == 'success'
+        run: |
+          echo "✅ 部署成功！"
+          echo "服务地址: http://${{ secrets.SERVER_HOST }}"
+          echo "User API: http://${{ secrets.SERVER_HOST }}:8888"
+          echo "User RPC: http://${{ secrets.SERVER_HOST }}:8080"
+          echo ""
+          echo "基础设施服务："
+          echo "  - MySQL: ${{ secrets.SERVER_HOST }}:3306"
+          echo "  - Redis: ${{ secrets.SERVER_HOST }}:6379"
+          echo "  - etcd: ${{ secrets.SERVER_HOST }}:2379"
+          echo "  - Kafka: ${{ secrets.SERVER_HOST }}:29092"
+          echo ""
+          echo "下一步操作："
+          echo "  1. 配置外部 nginx: ./nginx-manager.sh install"
+          echo "  2. 创建 Kafka 主题: ./kafka-manager.sh create-default"
+          echo "  3. 检查服务状态: ./infrastructure-manager.sh status"
+
+      - name: 部署失败通知
+        if: needs.deploy.result == 'failure'
+        run: |
+          echo "❌ 部署失败！"
+          echo "请检查部署日志以获取详细信息"
