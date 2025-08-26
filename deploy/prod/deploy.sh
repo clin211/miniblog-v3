@@ -222,7 +222,6 @@ show_info() {
     echo "  - 基础设施管理: ./infrastructure-manager.sh"
     echo "  - Kafka 管理: ./kafka-manager.sh"
     echo "  - Nginx 管理: ./nginx-manager.sh"
-    echo "  - 服务管理: ./nginx/service-manager.sh"
     echo ""
     echo "下一步操作："
     echo "  1. 配置外部 nginx: ./nginx-manager.sh install"

@@ -165,7 +165,6 @@ jobs:
             chmod +x infrastructure-manager.sh
             chmod +x kafka-manager.sh
             chmod +x nginx-manager.sh
-            chmod +x nginx/conf.d/service-manager.sh
 
       - name: 更新环境变量
         uses: appleboy/ssh-action@v1.0.3

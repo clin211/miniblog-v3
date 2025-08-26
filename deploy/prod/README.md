@@ -33,8 +33,7 @@ deploy/prod/
 │   │   └── services/                     # 服务配置目录
 │   │       ├── user.conf                 # 用户服务配置
 │   │       └── template.conf             # 配置模板
-│   ├── nginx-manager.sh                  # Nginx 管理脚本
-│   └── service-manager.sh                # 服务管理脚本
+│   └── nginx-manager.sh                  # Nginx 管理脚本
 └── README.md                             # 本文档
 ```
 
@@ -162,15 +161,8 @@ docker-compose down
 # 恢复 nginx 配置
 ./nginx-manager.sh restore
 
-# 添加新服务
-./nginx/service-manager.sh add <service-name> <port>
-
-# 列出所有服务
-./nginx/service-manager.sh list
-
-# 启用/禁用服务
-./nginx/service-manager.sh enable <service-name>
-./nginx/service-manager.sh disable <service-name>
+# 手动添加新服务
+# 在 nginx/conf.d/services/ 目录下创建对应的 .conf 文件
 ```
 
 ## 环境变量配置
