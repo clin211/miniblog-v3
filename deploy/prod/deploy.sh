@@ -172,6 +172,23 @@ deploy_services() {
     log_info "应用服务部署完成"
 }
 
+# 检查网络
+check_network() {
+    log_info "检查 Docker 网络..."
+
+    if ! docker network ls | grep -q "miniblog-v3-network"; then
+        log_warn "网络 miniblog-v3-network 不存在，尝试创建..."
+        if docker network create miniblog-v3-network --driver bridge; then
+            log_info "网络 miniblog-v3-network 创建成功"
+        else
+            log_error "网络创建失败"
+            exit 1
+        fi
+    else
+        log_info "网络 miniblog-v3-network 已存在"
+    fi
+}
+
 # 检查基础设施服务
 check_infrastructure_services() {
     log_info "检查基础设施服务状态..."
@@ -361,6 +378,7 @@ main() {
     create_directories
     copy_configs
     load_env
+    check_network
     deploy_services
     check_services
     show_info
