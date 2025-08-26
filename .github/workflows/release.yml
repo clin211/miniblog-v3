@@ -166,7 +166,7 @@ jobs:
             chmod +x kafka-manager.sh
             chmod +x nginx-manager.sh
 
-      - name: 更新环境变量
+      - name: 设置镜像标签
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -174,10 +174,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/project/miniblog-v3
-            # 设置镜像标签为 release
+            # 设置镜像标签为 release（用于应用服务）
             echo "IMAGE_TAG=release" > .env
-            echo "# 本地构建的镜像配置" >> .env
-            echo "# 镜像已通过 docker load 加载到本地" >> .env
 
       - name: 加载 Docker 镜像
         uses: appleboy/ssh-action@v1.0.3
@@ -191,7 +189,7 @@ jobs:
             docker load -i miniblog-user-rpc.tar
             docker images | grep miniblog
 
-      - name: 启动基础设施服务
+      - name: 检查基础设施服务状态
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -199,23 +197,40 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/project/miniblog-v3
-            ./infrastructure-manager.sh start
 
-      - name: 等待基础设施服务就绪
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "等待 MySQL 服务就绪..."
-            timeout 60 bash -c 'until docker exec miniblog-v3-mysql-1 mysqladmin ping -h"localhost" --silent; do sleep 2; done'
+            echo "检查基础设施服务状态..."
+            ./infrastructure-manager.sh status
 
-            echo "等待 Redis 服务就绪..."
-            timeout 30 bash -c 'until docker exec miniblog-v3-redis-1 redis-cli ping; do sleep 2; done'
+            echo "检查关键服务连接..."
 
-            echo "等待 etcd 服务就绪..."
-            timeout 30 bash -c 'until docker exec miniblog-v3-etcd-1 etcdctl endpoint health; do sleep 2; done'
+            # 检查 MySQL
+            if docker exec miniblog-v3-mysql-1 mysqladmin ping -h"localhost" --silent 2>/dev/null; then
+              echo "✅ MySQL 服务正常"
+            else
+              echo "❌ MySQL 服务异常，请手动启动基础设施服务"
+              echo "执行命令: ./infrastructure-manager.sh start"
+              exit 1
+            fi
+
+            # 检查 Redis
+            if docker exec miniblog-v3-redis-1 redis-cli ping 2>/dev/null | grep -q "PONG"; then
+              echo "✅ Redis 服务正常"
+            else
+              echo "❌ Redis 服务异常，请手动启动基础设施服务"
+              echo "执行命令: ./infrastructure-manager.sh start"
+              exit 1
+            fi
+
+            # 检查 etcd
+            if docker exec miniblog-v3-etcd-1 etcdctl endpoint health 2>/dev/null | grep -q "healthy"; then
+              echo "✅ etcd 服务正常"
+            else
+              echo "❌ etcd 服务异常，请手动启动基础设施服务"
+              echo "执行命令: ./infrastructure-manager.sh start"
+              exit 1
+            fi
+
+            echo "✅ 所有基础设施服务运行正常"
 
       - name: 启动应用服务
         uses: appleboy/ssh-action@v1.0.3
@@ -225,17 +240,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/project/miniblog-v3
+
+            echo "停止现有应用服务..."
+            docker-compose down user-api user-rpc 2>/dev/null || true
+
+            echo "启动应用服务..."
             docker-compose up -d user-api user-rpc
 
-      - name: 等待应用服务启动
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
             echo "等待应用服务启动..."
             sleep 30
+
+            echo "检查应用服务状态..."
+            docker-compose ps user-api user-rpc
 
       - name: 验证部署
         uses: appleboy/ssh-action@v1.0.3
@@ -246,23 +262,51 @@ jobs:
           script: |
             cd /home/project/miniblog-v3
 
-            echo "检查服务状态..."
+            echo "=== 部署验证报告 ==="
+
+            echo "1. 检查容器状态..."
             docker-compose ps
 
-            echo "执行健康检查..."
-            if curl -f http://localhost:8888/health; then
+            echo ""
+            echo "2. 检查应用服务日志..."
+            echo "User API 日志（最后10行）："
+            docker-compose logs --tail 10 user-api
+
+            echo ""
+            echo "User RPC 日志（最后10行）："
+            docker-compose logs --tail 10 user-rpc
+
+            echo ""
+            echo "3. 执行健康检查..."
+
+            # 检查 User API
+            echo "检查 User API (端口 8888)..."
+            if curl -f -s http://localhost:8888/health > /dev/null; then
               echo "✅ User API 健康检查通过"
             else
               echo "❌ User API 健康检查失败"
+              echo "尝试查看详细错误信息..."
+              curl -v http://localhost:8888/health || true
               exit 1
             fi
 
-            if curl -f http://localhost:8080/health; then
+            # 检查 User RPC
+            echo "检查 User RPC (端口 8080)..."
+            if curl -f -s http://localhost:8080/health > /dev/null; then
               echo "✅ User RPC 健康检查通过"
             else
               echo "❌ User RPC 健康检查失败"
+              echo "尝试查看详细错误信息..."
+              curl -v http://localhost:8080/health || true
               exit 1
             fi
+
+            echo ""
+            echo "4. 检查端口监听状态..."
+            netstat -tlnp | grep -E ":(8888|8080)" || echo "端口未监听，可能服务未完全启动"
+
+            echo ""
+            echo "✅ 部署验证完成"
 
       - name: 清理临时文件
         uses: appleboy/ssh-action@v1.0.3

@@ -33,16 +33,6 @@ log_debug() {
 COMPOSE_FILE="docker-compose.env.yml"
 PROJECT_NAME="miniblog-infrastructure"
 
-# 加载环境变量
-load_env() {
-    if [ -f ".env" ]; then
-        log_info "加载环境变量文件..."
-        export $(cat .env | grep -v '^#' | xargs)
-        log_info "环境变量加载完成"
-    else
-        log_warn "未找到 .env 文件，使用默认配置"
-    fi
-}
 
 # 启动基础设施服务
 start_infrastructure() {
@@ -54,8 +44,9 @@ start_infrastructure() {
         exit 1
     fi
 
-    # 加载环境变量
-    load_env
+    # 创建网络
+    log_info "创建网络 miniblog-v3-network..."
+    docker network create miniblog-v3-network 2>/dev/null || log_info "网络已存在"
 
     # 启动服务
     docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
@@ -73,10 +64,11 @@ start_infrastructure() {
 stop_infrastructure() {
     log_info "停止基础设施服务..."
 
-    # 加载环境变量
-    load_env
-
     docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME down
+
+    # 删除网络
+    log_info "删除网络 miniblog-v3-network..."
+    docker network rm miniblog-v3-network 2>/dev/null || log_info "网络不存在或已被删除"
 
     log_info "基础设施服务已停止"
 }
@@ -95,9 +87,14 @@ status_infrastructure() {
     log_info "基础设施服务状态："
     echo "=================================="
 
-    # 加载环境变量
-    load_env
+    # 检查网络状态
+    if docker network ls | grep -q "miniblog-v3-network"; then
+        log_info "网络 miniblog-v3-network: 已创建"
+    else
+        log_warn "网络 miniblog-v3-network: 未创建"
+    fi
 
+    echo ""
     docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps
 
     echo ""
@@ -168,7 +165,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$redis_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker exec miniblog-v3-redis-1 redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
+        if docker exec miniblog-v3-redis-1 redis-cli -a "redis123" ping > /dev/null 2>&1; then
             redis_ready=true
             log_info "Redis 已就绪"
         else
@@ -253,7 +250,7 @@ backup_database() {
 
     # 执行备份
     docker exec miniblog-v3-mysql-1 mysqldump \
-        -u root -p${MYSQL_ROOT_PASSWORD:-root123456} \
+        -u root -proot123456 \
         --all-databases > "$backup_file"
 
     if [ $? -eq 0 ]; then
@@ -285,7 +282,7 @@ restore_database() {
 
     if [[ "$response" =~ ^[Yy]$ ]]; then
         docker exec -i miniblog-v3-mysql-1 mysql \
-            -u root -p${MYSQL_ROOT_PASSWORD:-root123456} < "$backup_file"
+            -u root -proot123456 < "$backup_file"
 
         if [ $? -eq 0 ]; then
             log_info "数据库恢复完成"
@@ -332,7 +329,7 @@ test_service() {
             ;;
         "redis")
             log_info "测试 Redis 连接..."
-            if docker exec miniblog-v3-redis-1 redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
+            if docker exec miniblog-v3-redis-1 redis-cli -a "redis123" ping > /dev/null 2>&1; then
                 log_info "Redis 连接正常"
             else
                 log_error "Redis 连接失败"
@@ -380,13 +377,47 @@ clean_data() {
         log_info "停止服务..."
         docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME down
 
-            log_info "删除数据卷..."
-    docker volume rm miniblog-infrastructure_mysql_data miniblog-infrastructure_redis_data miniblog-infrastructure_etcd_data miniblog-infrastructure_zookeeper_data miniblog-infrastructure_zookeeper_logs miniblog-infrastructure_kafka_data 2>/dev/null || true
+        log_info "删除数据卷..."
+        docker volume rm miniblog-infrastructure_mysql_data miniblog-infrastructure_redis_data miniblog-infrastructure_etcd_data miniblog-infrastructure_zookeeper_data miniblog-infrastructure_zookeeper_logs miniblog-infrastructure_kafka_data 2>/dev/null || true
+
+        log_info "删除网络..."
+        docker network rm miniblog-v3-network 2>/dev/null || true
 
         log_info "数据清理完成"
     else
         log_info "取消清理操作"
     fi
+}
+
+# 网络管理
+manage_network() {
+    local action=${1:-"status"}
+
+    case "$action" in
+        "create")
+            log_info "创建网络 miniblog-v3-network..."
+            docker network create miniblog-v3-network
+            log_info "网络创建完成"
+            ;;
+        "delete")
+            log_info "删除网络 miniblog-v3-network..."
+            docker network rm miniblog-v3-network
+            log_info "网络删除完成"
+            ;;
+        "status")
+            if docker network ls | grep -q "miniblog-v3-network"; then
+                log_info "网络 miniblog-v3-network 已存在"
+                docker network inspect miniblog-v3-network --format='{{.Name}}: {{.Driver}}'
+            else
+                log_warn "网络 miniblog-v3-network 不存在"
+            fi
+            ;;
+        *)
+            log_error "未知网络操作: $action"
+            log_info "可用操作: create, delete, status"
+            exit 1
+            ;;
+    esac
 }
 
 # 显示帮助信息
@@ -405,6 +436,7 @@ show_help() {
     echo "  backup [backup-dir]     备份数据库"
     echo "  restore <backup-file>   恢复数据库"
     echo "  clean                   清理所有数据（危险操作）"
+    echo "  network <action>        网络管理 (create/delete/status)"
     echo "  help                    显示此帮助信息"
     echo ""
     echo "示例:"
@@ -414,6 +446,9 @@ show_help() {
     echo "  $0 backup ./backups      # 备份数据库"
     echo "  $0 restore backup.sql    # 恢复数据库"
     echo "  $0 logs mysql            # 查看 MySQL 日志"
+    echo "  $0 network status        # 查看网络状态"
+    echo "  $0 network create        # 创建网络"
+    echo "  $0 network delete        # 删除网络"
 }
 
 # 主函数
@@ -445,6 +480,9 @@ main() {
             ;;
         "clean")
             clean_data
+            ;;
+        "network")
+            manage_network "$2"
             ;;
         "help"|"-h"|"--help")
             show_help

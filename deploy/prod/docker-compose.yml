@@ -18,7 +18,7 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - miniblog-network
+      - miniblog-v3-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
@@ -44,7 +44,7 @@ services:
     ports:
       - "8888:8888"
     networks:
-      - miniblog-network
+      - miniblog-v3-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/health"]
       interval: 30s
@@ -56,6 +56,6 @@ services:
       - "com.docker.compose.service=user-api"
 
 networks:
-  miniblog-network:
+  miniblog-v3-network:
     external: true
-    name: miniblog-infrastructure_miniblog-network
+    name: miniblog-v3-network
