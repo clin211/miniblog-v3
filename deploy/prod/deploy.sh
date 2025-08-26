@@ -147,22 +147,22 @@ check_local_images() {
     log_info "检查本地镜像..."
 
     # 检查 user-api 镜像
-    if ! docker images | grep -q "miniblog-user-api.*release"; then
-        log_error "本地镜像 miniblog-user-api:release 不存在"
+    if ! docker images | grep -q "miniblog-v3-user-api.*release"; then
+        log_error "本地镜像 miniblog-v3-user-api:release 不存在"
         log_info "请确保镜像已通过 docker load 加载到本地"
         exit 1
     fi
 
     # 检查 user-rpc 镜像
-    if ! docker images | grep -q "miniblog-user-rpc.*release"; then
-        log_error "本地镜像 miniblog-user-rpc:release 不存在"
+    if ! docker images | grep -q "miniblog-v3-user-rpc.*release"; then
+        log_error "本地镜像 miniblog-v3-user-rpc:release 不存在"
         log_info "请确保镜像已通过 docker load 加载到本地"
         exit 1
     fi
 
     log_info "本地镜像检查通过"
-    echo "发现的 miniblog 镜像："
-    docker images | grep miniblog || echo "没有找到 miniblog 镜像"
+    echo "发现的 miniblog-v3 镜像："
+    docker images | grep miniblog-v3 || echo "没有找到 miniblog-v3 镜像"
 }
 
 # 检查服务状态

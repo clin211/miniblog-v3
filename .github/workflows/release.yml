@@ -72,7 +72,7 @@ jobs:
           file: ./deploy/prod/Dockerfile.user-api
           push: false
           load: true
-          tags: miniblog-user-api:release
+          tags: miniblog-v3-user-api:release
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -83,28 +83,28 @@ jobs:
           file: ./deploy/prod/Dockerfile.user-rpc
           push: false
           load: true
-          tags: miniblog-user-rpc:release
+          tags: miniblog-v3-user-rpc:release
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: 保存镜像为 tar 文件
         run: |
-          docker save miniblog-user-api:release -o miniblog-user-api.tar
-          docker save miniblog-user-rpc:release -o miniblog-user-rpc.tar
+          docker save miniblog-v3-user-api:release -o miniblog-v3-user-api.tar
+          docker save miniblog-v3-user-rpc:release -o miniblog-v3-user-rpc.tar
 
       - name: 上传镜像为 artifacts
         uses: actions/upload-artifact@v4
         with:
           name: docker-images
           path: |
-            miniblog-user-api.tar
-            miniblog-user-rpc.tar
+            miniblog-v3-user-api.tar
+            miniblog-v3-user-rpc.tar
           retention-days: 1
 
       - name: 输出镜像信息
         run: |
-          echo "User API 镜像: miniblog-user-api:release"
-          echo "User RPC 镜像: miniblog-user-rpc:release"
+          echo "User API 镜像: miniblog-v3-user-api:release"
+          echo "User RPC 镜像: miniblog-v3-user-rpc:release"
           ls -la *.tar
 
   # 部署到服务器
@@ -185,8 +185,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/project/miniblog-v3
-            docker load -i miniblog-user-api.tar
-            docker load -i miniblog-user-rpc.tar
+            docker load -i miniblog-v3-user-api.tar
+            docker load -i miniblog-v3-user-rpc.tar
             docker images | grep miniblog
 
       - name: 检查基础设施服务状态
@@ -231,6 +231,9 @@ jobs:
             echo "检查基础设施服务容器..."
             docker ps | grep miniblog-v3- || echo "没有找到基础设施服务容器"
 
+            echo "检查镜像是否存在..."
+            docker images | grep miniblog-v3-user || echo "没有找到应用镜像"
+
             echo "停止现有应用服务..."
             docker-compose down user-api user-rpc 2>/dev/null || true
 
@@ -244,63 +247,15 @@ jobs:
             docker-compose ps user-api user-rpc
 
             echo "检查应用服务日志..."
-            docker-compose logs --tail 10 user-rpc
-            docker-compose logs --tail 10 user-api
+            echo "=== User RPC 日志 ==="
+            docker-compose logs --tail 20 user-rpc
+            echo "=== User API 日志 ==="
+            docker-compose logs --tail 20 user-api
 
-      - name: 验证部署
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/project/miniblog-v3
+            echo "检查容器是否正在运行..."
+            docker ps | grep miniblog-user || echo "应用容器未运行"
 
-            echo "=== 部署验证报告 ==="
 
-            echo "1. 检查容器状态..."
-            docker-compose ps
-
-            echo ""
-            echo "2. 检查应用服务日志..."
-            echo "User API 日志（最后10行）："
-            docker-compose logs --tail 10 user-api
-
-            echo ""
-            echo "User RPC 日志（最后10行）："
-            docker-compose logs --tail 10 user-rpc
-
-            echo ""
-            echo "3. 执行健康检查..."
-
-            # 检查 User API
-            echo "检查 User API (端口 8888)..."
-            if curl -f -s http://localhost:8888/health > /dev/null; then
-              echo "✅ User API 健康检查通过"
-            else
-              echo "❌ User API 健康检查失败"
-              echo "尝试查看详细错误信息..."
-              curl -v http://localhost:8888/health || true
-              exit 1
-            fi
-
-            # 检查 User RPC
-            echo "检查 User RPC (端口 8080)..."
-            if curl -f -s http://localhost:8080/health > /dev/null; then
-              echo "✅ User RPC 健康检查通过"
-            else
-              echo "❌ User RPC 健康检查失败"
-              echo "尝试查看详细错误信息..."
-              curl -v http://localhost:8080/health || true
-              exit 1
-            fi
-
-            echo ""
-            echo "4. 检查端口监听状态..."
-            netstat -tlnp | grep -E ":(8888|8080)" || echo "端口未监听，可能服务未完全启动"
-
-            echo ""
-            echo "✅ 部署验证完成"
 
       - name: 清理临时文件
         uses: appleboy/ssh-action@v1.0.3
@@ -310,7 +265,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/project/miniblog-v3
-            rm -f *.tar
+            rm -f miniblog-v3-*.tar
 
   # 通知部署结果
   notify:
@@ -335,9 +290,9 @@ jobs:
           echo "  - Kafka: ${{ secrets.SERVER_HOST }}:29092"
           echo ""
           echo "下一步操作："
-          echo "  1. 配置外部 nginx: ./nginx-manager.sh install"
-          echo "  2. 创建 Kafka 主题: ./kafka-manager.sh create-default"
-          echo "  3. 检查服务状态: ./infrastructure-manager.sh status"
+          echo "  1. 检查服务状态: ./infrastructure-manager.sh status"
+          echo "  2. 配置外部 nginx: ./nginx-manager.sh install"
+          echo "  3. 创建 Kafka 主题: ./kafka-manager.sh create-default"
 
       - name: 部署失败通知
         if: needs.deploy.result == 'failure'

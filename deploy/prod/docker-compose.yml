@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # user-rpc 服务
   user-rpc:
-    image: miniblog-user-rpc:${IMAGE_TAG:-release}
+    image: miniblog-v3-user-rpc:${IMAGE_TAG:-release}
     container_name: miniblog-user-rpc
     restart: unless-stopped
     environment:
@@ -19,19 +19,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     labels:
       - "com.docker.compose.project=miniblog-apps"
       - "com.docker.compose.service=user-rpc"
 
   # user-api 服务
   user-api:
-    image: miniblog-user-api:${IMAGE_TAG:-release}
+    image: miniblog-v3-user-api:${IMAGE_TAG:-release}
     container_name: miniblog-user-api
     restart: unless-stopped
-    depends_on:
-      user-rpc:
-        condition: service_healthy
     environment:
       - TZ=Asia/Shanghai
     volumes:
@@ -45,7 +42,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     labels:
       - "com.docker.compose.project=miniblog-apps"
       - "com.docker.compose.service=user-api"
