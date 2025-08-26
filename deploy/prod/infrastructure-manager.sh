@@ -104,35 +104,35 @@ status_infrastructure() {
     log_info "服务健康状态："
 
         # 检查 MySQL
-    if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps mysql | grep -q "Up"; then
+    if docker ps | grep -q "miniblog-v3-mysql-1"; then
         log_info "MySQL: 运行中"
     else
         log_warn "MySQL: 未运行"
     fi
 
     # 检查 Redis
-    if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps redis | grep -q "Up"; then
+    if docker ps | grep -q "miniblog-v3-redis-1"; then
         log_info "Redis: 运行中"
     else
         log_warn "Redis: 未运行"
     fi
 
     # 检查 etcd
-    if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps etcd | grep -q "Up"; then
+    if docker ps | grep -q "miniblog-v3-etcd-1"; then
         log_info "etcd: 运行中"
     else
         log_warn "etcd: 未运行"
     fi
 
     # 检查 Zookeeper
-    if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps zookeeper | grep -q "Up"; then
+    if docker ps | grep -q "miniblog-v3-zookeeper-1"; then
         log_info "Zookeeper: 运行中"
     else
         log_warn "Zookeeper: 未运行"
     fi
 
     # 检查 Kafka
-    if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps kafka | grep -q "Up"; then
+    if docker ps | grep -q "miniblog-v3-kafka-1"; then
         log_info "Kafka: 运行中"
     else
         log_warn "Kafka: 未运行"
@@ -149,7 +149,7 @@ wait_for_services() {
     local max_attempts=30
 
     while [ "$mysql_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T mysql mysqladmin ping -h localhost --silent; then
+        if docker exec miniblog-v3-mysql-1 mysqladmin ping -h localhost --silent; then
             mysql_ready=true
             log_info "MySQL 已就绪"
         else
@@ -168,7 +168,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$redis_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T redis redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
+        if docker exec miniblog-v3-redis-1 redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
             redis_ready=true
             log_info "Redis 已就绪"
         else
@@ -187,7 +187,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$etcd_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T etcd etcdctl endpoint health --endpoints=http://localhost:2379 > /dev/null 2>&1; then
+        if docker exec miniblog-v3-etcd-1 etcdctl endpoint health --endpoints=http://localhost:2379 > /dev/null 2>&1; then
             etcd_ready=true
             log_info "etcd 已就绪"
         else
@@ -206,7 +206,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$zookeeper_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T zookeeper sh -c "echo ruok | nc localhost 2181 | grep -q imok"; then
+        if docker exec miniblog-v3-zookeeper-1 sh -c "echo ruok | nc localhost 2181 | grep -q imok"; then
             zookeeper_ready=true
             log_info "Zookeeper 已就绪"
         else
@@ -225,7 +225,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$kafka_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+        if docker exec miniblog-v3-kafka-1 kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
             kafka_ready=true
             log_info "Kafka 已就绪"
         else
@@ -252,7 +252,7 @@ backup_database() {
     mkdir -p "$backup_dir"
 
     # 执行备份
-    docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T mysql mysqldump \
+    docker exec miniblog-v3-mysql-1 mysqldump \
         -u root -p${MYSQL_ROOT_PASSWORD:-root123456} \
         --all-databases > "$backup_file"
 
@@ -284,7 +284,7 @@ restore_database() {
     read -r response
 
     if [[ "$response" =~ ^[Yy]$ ]]; then
-        docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T mysql mysql \
+        docker exec -i miniblog-v3-mysql-1 mysql \
             -u root -p${MYSQL_ROOT_PASSWORD:-root123456} < "$backup_file"
 
         if [ $? -eq 0 ]; then
@@ -324,7 +324,7 @@ test_service() {
     case "$service" in
         "mysql")
             log_info "测试 MySQL 连接..."
-            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T mysql mysqladmin ping -h localhost --silent; then
+            if docker exec miniblog-v3-mysql-1 mysqladmin ping -h localhost --silent; then
                 log_info "MySQL 连接正常"
             else
                 log_error "MySQL 连接失败"
@@ -332,7 +332,7 @@ test_service() {
             ;;
         "redis")
             log_info "测试 Redis 连接..."
-            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T redis redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
+            if docker exec miniblog-v3-redis-1 redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
                 log_info "Redis 连接正常"
             else
                 log_error "Redis 连接失败"
@@ -340,7 +340,7 @@ test_service() {
             ;;
         "etcd")
             log_info "测试 etcd 连接..."
-            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T etcd etcdctl endpoint health --endpoints=http://localhost:2379 > /dev/null 2>&1; then
+            if docker exec miniblog-v3-etcd-1 etcdctl endpoint health --endpoints=http://localhost:2379 > /dev/null 2>&1; then
                 log_info "etcd 连接正常"
             else
                 log_error "etcd 连接失败"
@@ -348,7 +348,7 @@ test_service() {
             ;;
         "zookeeper")
             log_info "测试 Zookeeper 连接..."
-            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T zookeeper sh -c "echo ruok | nc localhost 2181 | grep -q imok"; then
+            if docker exec miniblog-v3-zookeeper-1 sh -c "echo ruok | nc localhost 2181 | grep -q imok"; then
                 log_info "Zookeeper 连接正常"
             else
                 log_error "Zookeeper 连接失败"
@@ -356,7 +356,7 @@ test_service() {
             ;;
         "kafka")
             log_info "测试 Kafka 连接..."
-            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+            if docker exec miniblog-v3-kafka-1 kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
                 log_info "Kafka 连接正常"
             else
                 log_error "Kafka 连接失败"
@@ -381,7 +381,7 @@ clean_data() {
         docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME down
 
             log_info "删除数据卷..."
-    docker volume rm ${PROJECT_NAME}_mysql_data ${PROJECT_NAME}_redis_data ${PROJECT_NAME}_etcd_data ${PROJECT_NAME}_zookeeper_data ${PROJECT_NAME}_zookeeper_logs ${PROJECT_NAME}_kafka_data 2>/dev/null || true
+    docker volume rm miniblog-infrastructure_mysql_data miniblog-infrastructure_redis_data miniblog-infrastructure_etcd_data miniblog-infrastructure_zookeeper_data miniblog-infrastructure_zookeeper_logs miniblog-infrastructure_kafka_data 2>/dev/null || true
 
         log_info "数据清理完成"
     else
