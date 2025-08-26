@@ -230,7 +230,7 @@ wait_for_services() {
             log_info "Kafka 已就绪"
         else
             attempts=$((attempts + 1))
-            sleep 5
+            sleep 10
         fi
     done
 
