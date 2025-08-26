@@ -16,9 +16,8 @@ on:
           - staging
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME_USER_API: ${{ github.repository }}/miniblog-user-api
-  IMAGE_NAME_USER_RPC: ${{ github.repository }}/miniblog-user-rpc
+  # 本地构建的镜像标签
+  IMAGE_TAG: release
 
 jobs:
   # 代码质量检查
@@ -53,14 +52,11 @@ jobs:
 
           echo "代码质量检查通过"
 
-  # 构建和推送 Docker 镜像
-  build-and-push:
-    name: 构建和推送镜像
+  # 构建 Docker 镜像
+  build:
+    name: 构建镜像
     needs: code-quality
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: 检出代码
@@ -69,68 +65,52 @@ jobs:
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 登录到容器注册表
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 提取元数据
-        id: meta-user-api
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_USER_API }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-
-      - name: 提取元数据
-        id: meta-user-rpc
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_USER_RPC }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-
-      - name: 构建并推送 user-api 镜像
+      - name: 构建 user-api 镜像
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./deploy/prod/Dockerfile.user-api
-          push: true
-          tags: ${{ steps.meta-user-api.outputs.tags }}
-          labels: ${{ steps.meta-user-api.outputs.labels }}
+          push: false
+          load: true
+          tags: miniblog-user-api:release
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: 构建并推送 user-rpc 镜像
+      - name: 构建 user-rpc 镜像
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./deploy/prod/Dockerfile.user-rpc
-          push: true
-          tags: ${{ steps.meta-user-rpc.outputs.tags }}
-          labels: ${{ steps.meta-user-rpc.outputs.labels }}
+          push: false
+          load: true
+          tags: miniblog-user-rpc:release
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: 保存镜像为 tar 文件
+        run: |
+          docker save miniblog-user-api:release -o miniblog-user-api.tar
+          docker save miniblog-user-rpc:release -o miniblog-user-rpc.tar
+
+      - name: 上传镜像为 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: |
+            miniblog-user-api.tar
+            miniblog-user-rpc.tar
+          retention-days: 1
+
       - name: 输出镜像信息
         run: |
-          echo "User API 镜像: ${{ steps.meta-user-api.outputs.tags }}"
-          echo "User RPC 镜像: ${{ steps.meta-user-rpc.outputs.tags }}"
+          echo "User API 镜像: miniblog-user-api:release"
+          echo "User RPC 镜像: miniblog-user-rpc:release"
+          ls -la *.tar
 
   # 部署到服务器
   deploy:
     name: 部署到服务器
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     environment: production
 
@@ -138,84 +118,162 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 SSH 密钥
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: 下载构建的镜像
+        uses: actions/download-artifact@v4
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: 添加服务器到已知主机
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
-
-      - name: 创建部署目录
-        run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            mkdir -p ${{ secrets.DEPLOY_PATH }}/miniblog-v3
-            mkdir -p ${{ secrets.DEPLOY_PATH }}/miniblog-v3/logs
-            mkdir -p ${{ secrets.DEPLOY_PATH }}/miniblog-v3/nginx
-          "
+          name: docker-images
+          path: ./images
 
       - name: 上传部署文件
-        run: |
-          # 上传 docker-compose 文件
-          scp deploy/prod/docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy/prod/*"
+          target: "/home/project/miniblog-v3/"
+          strip_components: 1
 
-          # 上传环境变量文件
-          scp deploy/prod/env.example ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/.env
+      - name: 上传 Docker 镜像
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "images/*.tar"
+          target: "/home/project/miniblog-v3/"
 
-                    # 上传部署脚本
-          scp deploy/prod/deploy.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
+      - name: 创建部署目录结构
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            mkdir -p /home/project/miniblog-v3/logs
+            mkdir -p /home/project/miniblog-v3/nginx
 
-                      # 上传基础设施配置和管理脚本
-            scp deploy/prod/docker-compose.env.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
-          scp deploy/prod/infrastructure-manager.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
-          scp deploy/prod/kafka-manager.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
-
-          # 上传 SQL 文件
-          scp deploy/sql/user.sql ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/sql/
-
-          # 上传 Nginx 配置和管理脚本
-          scp -r deploy/prod/nginx/conf.d ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/nginx/
-          scp deploy/prod/nginx-manager.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/miniblog-v3/
-
-      - name: 更新环境变量
-        run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }}/miniblog-v3
-            sed -i 's|DOCKER_REGISTRY=clin211|DOCKER_REGISTRY=${{ env.REGISTRY }}/${{ github.repository_owner }}|g' .env
-            sed -i 's|IMAGE_TAG=latest|IMAGE_TAG=release|g' .env
-          "
-
-      - name: 执行部署
-        run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }}/miniblog-v3
+      - name: 设置文件权限
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
             chmod +x deploy.sh
             chmod +x infrastructure-manager.sh
             chmod +x kafka-manager.sh
             chmod +x nginx-manager.sh
-            chmod +x nginx/service-manager.sh
-            ./deploy.sh
-          "
+            chmod +x nginx/conf.d/service-manager.sh
+
+      - name: 更新环境变量
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
+            # 设置镜像标签为 release
+            echo "IMAGE_TAG=release" > .env
+            echo "# 本地构建的镜像配置" >> .env
+            echo "# 镜像已通过 docker load 加载到本地" >> .env
+
+      - name: 加载 Docker 镜像
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
+            docker load -i miniblog-user-api.tar
+            docker load -i miniblog-user-rpc.tar
+            docker images | grep miniblog
+
+      - name: 启动基础设施服务
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
+            ./infrastructure-manager.sh start
+
+      - name: 等待基础设施服务就绪
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "等待 MySQL 服务就绪..."
+            timeout 60 bash -c 'until docker exec miniblog-v3-mysql-1 mysqladmin ping -h"localhost" --silent; do sleep 2; done'
+
+            echo "等待 Redis 服务就绪..."
+            timeout 30 bash -c 'until docker exec miniblog-v3-redis-1 redis-cli ping; do sleep 2; done'
+
+            echo "等待 etcd 服务就绪..."
+            timeout 30 bash -c 'until docker exec miniblog-v3-etcd-1 etcdctl endpoint health; do sleep 2; done'
+
+      - name: 启动应用服务
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
+            docker-compose up -d user-api user-rpc
+
+      - name: 等待应用服务启动
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "等待应用服务启动..."
+            sleep 30
 
       - name: 验证部署
-        run: |
-          echo "等待服务启动..."
-          sleep 30
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
 
-          # 检查服务状态
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }}/miniblog-v3
+            echo "检查服务状态..."
             docker-compose ps
-          "
 
-          # 健康检查
-          echo "执行健康检查..."
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
-            curl -f http://localhost:8888/health || echo 'User API 健康检查失败'
-            curl -f http://localhost:8080/health || echo 'User RPC 健康检查失败'
-          "
+            echo "执行健康检查..."
+            if curl -f http://localhost:8888/health; then
+              echo "✅ User API 健康检查通过"
+            else
+              echo "❌ User API 健康检查失败"
+              exit 1
+            fi
+
+            if curl -f http://localhost:8080/health; then
+              echo "✅ User RPC 健康检查通过"
+            else
+              echo "❌ User RPC 健康检查失败"
+              exit 1
+            fi
+
+      - name: 清理临时文件
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/project/miniblog-v3
+            rm -f *.tar
 
   # 通知部署结果
   notify:

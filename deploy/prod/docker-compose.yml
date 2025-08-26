@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # user-rpc 服务
   user-rpc:
-    image: ${DOCKER_REGISTRY:-clin211}/miniblog-user-rpc:${IMAGE_TAG:-latest}
+    image: miniblog-user-rpc:${IMAGE_TAG:-release}
     container_name: miniblog-user-rpc
     restart: unless-stopped
     depends_on:
@@ -31,7 +31,7 @@ services:
 
   # user-api 服务
   user-api:
-    image: ${DOCKER_REGISTRY:-clin211}/miniblog-user-api:${IMAGE_TAG:-latest}
+    image: miniblog-user-api:${IMAGE_TAG:-release}
     container_name: miniblog-user-api
     restart: unless-stopped
     depends_on:

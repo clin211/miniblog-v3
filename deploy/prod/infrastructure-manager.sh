@@ -33,6 +33,17 @@ log_debug() {
 COMPOSE_FILE="docker-compose.env.yml"
 PROJECT_NAME="miniblog-infrastructure"
 
+# 加载环境变量
+load_env() {
+    if [ -f ".env" ]; then
+        log_info "加载环境变量文件..."
+        export $(cat .env | grep -v '^#' | xargs)
+        log_info "环境变量加载完成"
+    else
+        log_warn "未找到 .env 文件，使用默认配置"
+    fi
+}
+
 # 启动基础设施服务
 start_infrastructure() {
     log_info "启动基础设施服务..."
@@ -42,6 +53,9 @@ start_infrastructure() {
         log_error "Docker 未运行，请先启动 Docker"
         exit 1
     fi
+
+    # 加载环境变量
+    load_env
 
     # 启动服务
     docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
@@ -58,6 +72,9 @@ start_infrastructure() {
 # 停止基础设施服务
 stop_infrastructure() {
     log_info "停止基础设施服务..."
+
+    # 加载环境变量
+    load_env
 
     docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME down
 
@@ -77,6 +94,9 @@ restart_infrastructure() {
 status_infrastructure() {
     log_info "基础设施服务状态："
     echo "=================================="
+
+    # 加载环境变量
+    load_env
 
     docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME ps
 

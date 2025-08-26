@@ -50,14 +50,9 @@ create_directories() {
 
 # 复制配置文件
 copy_configs() {
-    log_info "复制配置文件..."
+    log_info "检查配置文件..."
 
-    # 复制 SQL 文件
-    if [ -f "../../deploy/sql/user.sql" ]; then
-        cp ../../deploy/sql/user.sql ./sql/
-    fi
-
-    # 复制 Nginx 配置文件（用于外部 nginx）
+    # 检查 Nginx 配置文件（用于外部 nginx）
     if [ -f "./nginx/conf.d/miniblog.conf" ]; then
         log_info "Nginx 主配置文件已存在"
     else
@@ -72,7 +67,7 @@ copy_configs() {
         log_warn "服务配置目录不存在"
     fi
 
-    log_info "配置文件复制完成"
+    log_info "配置文件检查完成"
 }
 
 # 加载环境变量
@@ -80,6 +75,7 @@ load_env() {
     if [ -f ".env" ]; then
         log_info "加载环境变量文件..."
         export $(cat .env | grep -v '^#' | xargs)
+        log_info "环境变量加载完成"
     else
         log_warn "未找到 .env 文件，使用默认配置"
     fi
@@ -92,13 +88,13 @@ deploy_services() {
     # 检查基础设施服务是否运行
     check_infrastructure_services
 
+    # 检查本地镜像是否存在
+    check_local_images
+
     # 停止现有应用服务
     docker-compose down --remove-orphans
 
-    # 拉取最新镜像
-    docker-compose pull
-
-    # 启动应用服务
+    # 启动应用服务（使用本地镜像）
     docker-compose up -d
 
     log_info "应用服务部署完成"
@@ -144,6 +140,28 @@ check_infrastructure_services() {
     fi
 
     log_info "基础设施服务检查通过"
+}
+
+# 检查本地镜像
+check_local_images() {
+    log_info "检查本地镜像..."
+
+    # 检查 user-api 镜像
+    if ! docker images | grep -q "miniblog-user-api.*release"; then
+        log_error "本地镜像 miniblog-user-api:release 不存在"
+        log_info "请确保镜像已通过 docker load 加载到本地"
+        exit 1
+    fi
+
+    # 检查 user-rpc 镜像
+    if ! docker images | grep -q "miniblog-user-rpc.*release"; then
+        log_error "本地镜像 miniblog-user-rpc:release 不存在"
+        log_info "请确保镜像已通过 docker load 加载到本地"
+        exit 1
+    fi
+
+    log_info "本地镜像检查通过"
+    docker images | grep miniblog
 }
 
 # 检查服务状态
@@ -210,6 +228,7 @@ show_info() {
     echo "  1. 配置外部 nginx: ./nginx-manager.sh install"
     echo "  2. 创建 Kafka 主题: ./kafka-manager.sh create-default"
     echo "  3. 检查服务状态: ./infrastructure-manager.sh status"
+    echo "  4. 查看应用日志: docker-compose logs -f user-api user-rpc"
     echo "=================================="
 }
 
