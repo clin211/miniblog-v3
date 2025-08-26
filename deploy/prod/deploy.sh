@@ -105,35 +105,35 @@ check_infrastructure_services() {
     log_info "检查基础设施服务状态..."
 
     # 检查 MySQL
-    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-mysql"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-mysql-1"; then
         log_error "MySQL 服务未运行，请先启动基础设施服务"
         log_info "使用命令: ./infrastructure-manager.sh start"
         exit 1
     fi
 
     # 检查 Redis
-    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-redis"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-redis-1"; then
         log_error "Redis 服务未运行，请先启动基础设施服务"
         log_info "使用命令: ./infrastructure-manager.sh start"
         exit 1
     fi
 
     # 检查 etcd
-    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-etcd"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-etcd-1"; then
         log_error "etcd 服务未运行，请先启动基础设施服务"
         log_info "使用命令: ./infrastructure-manager.sh start"
         exit 1
     fi
 
     # 检查 Zookeeper
-    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-zookeeper"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-zookeeper-1"; then
         log_error "Zookeeper 服务未运行，请先启动基础设施服务"
         log_info "使用命令: ./infrastructure-manager.sh start"
         exit 1
     fi
 
     # 检查 Kafka
-    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-kafka"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-kafka-1"; then
         log_error "Kafka 服务未运行，请先启动基础设施服务"
         log_info "使用命令: ./infrastructure-manager.sh start"
         exit 1
@@ -161,7 +161,8 @@ check_local_images() {
     fi
 
     log_info "本地镜像检查通过"
-    docker images | grep miniblog
+    echo "发现的 miniblog 镜像："
+    docker images | grep miniblog || echo "没有找到 miniblog 镜像"
 }
 
 # 检查服务状态
@@ -181,6 +182,8 @@ check_services() {
         log_info "user-rpc 服务健康检查通过"
     else
         log_warn "user-rpc 服务健康检查失败"
+        log_info "查看 user-rpc 日志："
+        docker-compose logs --tail 10 user-rpc
     fi
 
     # 检查 user-api 服务
@@ -188,6 +191,8 @@ check_services() {
         log_info "user-api 服务健康检查通过"
     else
         log_warn "user-api 服务健康检查失败"
+        log_info "查看 user-api 日志："
+        docker-compose logs --tail 10 user-api
     fi
 
     # 检查外部 nginx 服务（如果配置了的话）
@@ -208,11 +213,15 @@ show_info() {
     echo "  - 外部 Nginx: 需要手动配置"
     echo ""
     echo "基础设施服务："
-    echo "  - MySQL: localhost:3306"
-    echo "  - Redis: localhost:6379"
-    echo "  - etcd: localhost:2379"
-    echo "  - Zookeeper: localhost:2181"
-    echo "  - Kafka: localhost:29092"
+    echo "  - MySQL: localhost:3306 (容器: miniblog-v3-mysql-1)"
+    echo "  - Redis: localhost:6379 (容器: miniblog-v3-redis-1)"
+    echo "  - etcd: localhost:2379 (容器: miniblog-v3-etcd-1)"
+    echo "  - Zookeeper: localhost:2181 (容器: miniblog-v3-zookeeper-1)"
+    echo "  - Kafka: localhost:29092 (容器: miniblog-v3-kafka-1)"
+    echo ""
+    echo "应用服务："
+    echo "  - User API: miniblog-user-api (端口: 8888)"
+    echo "  - User RPC: miniblog-user-rpc (端口: 8080)"
     echo ""
     echo "日志目录："
     echo "  - User API: ./logs/user-api"
@@ -222,12 +231,14 @@ show_info() {
     echo "  - 基础设施管理: ./infrastructure-manager.sh"
     echo "  - Kafka 管理: ./kafka-manager.sh"
     echo "  - Nginx 管理: ./nginx-manager.sh"
+    echo "  - 健康检查: ./health-check.sh"
     echo ""
     echo "下一步操作："
     echo "  1. 配置外部 nginx: ./nginx-manager.sh install"
     echo "  2. 创建 Kafka 主题: ./kafka-manager.sh create-default"
     echo "  3. 检查服务状态: ./infrastructure-manager.sh status"
-    echo "  4. 查看应用日志: docker-compose logs -f user-api user-rpc"
+    echo "  4. 健康检查: ./infrastructure-manager.sh health all"
+    echo "  5. 查看应用日志: docker-compose logs -f user-api user-rpc"
     echo "=================================="
 }
 

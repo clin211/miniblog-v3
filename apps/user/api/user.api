@@ -11,6 +11,12 @@ info (
 )
 
 type (
+	// HealthRequest 健康检查请求
+	HealthRequest  {}
+	// HealthResponse 健康检查响应
+	HealthResponse {
+		Status string `json:"status"` // 状态
+	}
 	// RegisterRequest 用户注册请求
 	RegisterRequest {
 		Username       string `json:"username" valid:"required,length(3|100)"` // 用户名
@@ -72,6 +78,10 @@ type (
 )
 
 service User {
+	// Health 健康检查
+	@handler Health
+	get /health (HealthRequest) returns (HealthResponse)
+
 	// Register 用户注册
 	@handler Register
 	post /user/register (RegisterRequest) returns (RegisterResponse)
