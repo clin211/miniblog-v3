@@ -168,7 +168,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$redis_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T redis redis-cli ping > /dev/null 2>&1; then
+        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T redis redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
             redis_ready=true
             log_info "Redis 已就绪"
         else
@@ -187,7 +187,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$etcd_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T etcd etcdctl endpoint health > /dev/null 2>&1; then
+        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T etcd etcdctl endpoint health --endpoints=http://localhost:2379 > /dev/null 2>&1; then
             etcd_ready=true
             log_info "etcd 已就绪"
         else
@@ -206,7 +206,7 @@ wait_for_services() {
     attempts=0
 
     while [ "$zookeeper_ready" = false ] && [ $attempts -lt $max_attempts ]; do
-        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T zookeeper zookeeper-shell localhost:2181 ruok | grep -q "imok"; then
+        if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T zookeeper sh -c "echo ruok | nc localhost 2181 | grep -q imok"; then
             zookeeper_ready=true
             log_info "Zookeeper 已就绪"
         else

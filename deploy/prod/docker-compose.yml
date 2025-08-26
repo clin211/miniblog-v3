@@ -58,4 +58,4 @@ services:
 networks:
   miniblog-network:
     external: true
-    name: miniblog-network
+    name: miniblog-infrastructure_miniblog-network
