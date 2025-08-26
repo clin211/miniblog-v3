@@ -7,7 +7,13 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# 配置变量
+IMAGES_DIR="/home/project/miniblog-v3/images"
+USER_API_IMAGE="miniblog-v3-user-api:release"
+USER_RPC_IMAGE="miniblog-v3-user-rpc:release"
 
 # 日志函数
 log_info() {
@@ -20,6 +26,10 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_debug() {
+    echo -e "${BLUE}[DEBUG]${NC} $1"
 }
 
 # 检查 Docker 是否安装
@@ -81,6 +91,65 @@ load_env() {
     fi
 }
 
+# 检查镜像文件是否存在
+check_image_files() {
+    log_info "检查镜像文件..."
+
+    local user_api_tar="$IMAGES_DIR/miniblog-v3-user-api.tar"
+    local user_rpc_tar="$IMAGES_DIR/miniblog-v3-user-rpc.tar"
+
+    if [ ! -f "$user_api_tar" ]; then
+        log_error "镜像文件不存在: $user_api_tar"
+        log_info "请确保镜像文件已上传到 $IMAGES_DIR 目录"
+        exit 1
+    fi
+
+    if [ ! -f "$user_rpc_tar" ]; then
+        log_error "镜像文件不存在: $user_rpc_tar"
+        log_info "请确保镜像文件已上传到 $IMAGES_DIR 目录"
+        exit 1
+    fi
+
+    log_info "镜像文件检查通过"
+    log_info "发现镜像文件："
+    ls -lh "$IMAGES_DIR"/*.tar
+}
+
+# 加载镜像到 Docker
+load_images() {
+    log_info "开始加载镜像到 Docker..."
+
+    local user_api_tar="$IMAGES_DIR/miniblog-v3-user-api.tar"
+    local user_rpc_tar="$IMAGES_DIR/miniblog-v3-user-rpc.tar"
+
+    # 检查镜像是否已存在
+    if docker images | grep -q "$USER_API_IMAGE"; then
+        log_warn "镜像 $USER_API_IMAGE 已存在，跳过加载"
+    else
+        log_info "加载 user-api 镜像..."
+        if docker load -i "$user_api_tar"; then
+            log_info "user-api 镜像加载成功"
+        else
+            log_error "user-api 镜像加载失败"
+            exit 1
+        fi
+    fi
+
+    if docker images | grep -q "$USER_RPC_IMAGE"; then
+        log_warn "镜像 $USER_RPC_IMAGE 已存在，跳过加载"
+    else
+        log_info "加载 user-rpc 镜像..."
+        if docker load -i "$user_rpc_tar"; then
+            log_info "user-rpc 镜像加载成功"
+        else
+            log_error "user-rpc 镜像加载失败"
+            exit 1
+        fi
+    fi
+
+    log_info "镜像加载完成"
+}
+
 # 部署服务
 deploy_services() {
     log_info "开始部署应用服务..."
@@ -88,13 +157,16 @@ deploy_services() {
     # 检查基础设施服务是否运行
     check_infrastructure_services
 
-    # 检查本地镜像是否存在
+    # 检查并加载镜像
+    check_image_files
     check_local_images
 
     # 停止现有应用服务
+    log_info "停止现有应用服务..."
     docker-compose down --remove-orphans
 
     # 启动应用服务（使用本地镜像）
+    log_info "启动应用服务..."
     docker-compose up -d
 
     log_info "应用服务部署完成"
@@ -104,38 +176,39 @@ deploy_services() {
 check_infrastructure_services() {
     log_info "检查基础设施服务状态..."
 
+    local missing_services=()
+
     # 检查 MySQL
     if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-mysql-1"; then
-        log_error "MySQL 服务未运行，请先启动基础设施服务"
-        log_info "使用命令: ./infrastructure-manager.sh start"
-        exit 1
+        missing_services+=("MySQL")
     fi
 
     # 检查 Redis
     if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-redis-1"; then
-        log_error "Redis 服务未运行，请先启动基础设施服务"
-        log_info "使用命令: ./infrastructure-manager.sh start"
-        exit 1
+        missing_services+=("Redis")
     fi
 
     # 检查 etcd
     if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-etcd-1"; then
-        log_error "etcd 服务未运行，请先启动基础设施服务"
-        log_info "使用命令: ./infrastructure-manager.sh start"
-        exit 1
+        missing_services+=("etcd")
     fi
 
     # 检查 Zookeeper
     if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-zookeeper-1"; then
-        log_error "Zookeeper 服务未运行，请先启动基础设施服务"
-        log_info "使用命令: ./infrastructure-manager.sh start"
-        exit 1
+        missing_services+=("Zookeeper")
     fi
 
     # 检查 Kafka
     if ! docker ps --format "table {{.Names}}" | grep -q "miniblog-v3-kafka-1"; then
-        log_error "Kafka 服务未运行，请先启动基础设施服务"
-        log_info "使用命令: ./infrastructure-manager.sh start"
+        missing_services+=("Kafka")
+    fi
+
+    if [ ${#missing_services[@]} -gt 0 ]; then
+        log_error "以下基础设施服务未运行: ${missing_services[*]}"
+        log_info "请先启动基础设施服务："
+        log_info "  ./infrastructure-manager.sh start"
+        log_info "或者使用 docker-compose 启动："
+        log_info "  docker-compose -f docker-compose.env.yml up -d"
         exit 1
     fi
 
@@ -147,21 +220,21 @@ check_local_images() {
     log_info "检查本地镜像..."
 
     # 检查 user-api 镜像
-    if ! docker images | grep -q "miniblog-v3-user-api.*release"; then
-        log_error "本地镜像 miniblog-v3-user-api:release 不存在"
-        log_info "请确保镜像已通过 docker load 加载到本地"
-        exit 1
+    if ! docker images | grep -q "$USER_API_IMAGE"; then
+        log_error "本地镜像 $USER_API_IMAGE 不存在"
+        log_info "尝试自动加载镜像..."
+        load_images
     fi
 
     # 检查 user-rpc 镜像
-    if ! docker images | grep -q "miniblog-v3-user-rpc.*release"; then
-        log_error "本地镜像 miniblog-v3-user-rpc:release 不存在"
-        log_info "请确保镜像已通过 docker load 加载到本地"
-        exit 1
+    if ! docker images | grep -q "$USER_RPC_IMAGE"; then
+        log_error "本地镜像 $USER_RPC_IMAGE 不存在"
+        log_info "尝试自动加载镜像..."
+        load_images
     fi
 
     log_info "本地镜像检查通过"
-    echo "发现的 miniblog-v3 镜像："
+    log_info "发现的 miniblog-v3 镜像："
     docker images | grep miniblog-v3 || echo "没有找到 miniblog-v3 镜像"
 }
 
@@ -169,30 +242,53 @@ check_local_images() {
 check_services() {
     log_info "检查服务状态..."
 
-    sleep 10
+    # 等待服务启动
+    log_info "等待服务启动..."
+    sleep 15
 
     # 检查容器状态
+    log_info "容器状态："
     docker-compose ps
 
     # 检查服务健康状态
     log_info "检查服务健康状态..."
 
     # 检查 user-rpc 服务
-    if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-        log_info "user-rpc 服务健康检查通过"
-    else
-        log_warn "user-rpc 服务健康检查失败"
+    local rpc_health_ok=false
+    for i in {1..5}; do
+        if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+            log_info "user-rpc 服务健康检查通过"
+            rpc_health_ok=true
+            break
+        else
+            log_warn "user-rpc 服务健康检查失败，重试 $i/5"
+            sleep 3
+        fi
+    done
+
+    if [ "$rpc_health_ok" = false ]; then
+        log_error "user-rpc 服务健康检查最终失败"
         log_info "查看 user-rpc 日志："
-        docker-compose logs --tail 10 user-rpc
+        docker-compose logs --tail 20 user-rpc
     fi
 
     # 检查 user-api 服务
-    if curl -f http://localhost:8888/health > /dev/null 2>&1; then
-        log_info "user-api 服务健康检查通过"
-    else
-        log_warn "user-api 服务健康检查失败"
+    local api_health_ok=false
+    for i in {1..5}; do
+        if curl -f http://localhost:8888/health > /dev/null 2>&1; then
+            log_info "user-api 服务健康检查通过"
+            api_health_ok=true
+            break
+        else
+            log_warn "user-api 服务健康检查失败，重试 $i/5"
+            sleep 3
+        fi
+    done
+
+    if [ "$api_health_ok" = false ]; then
+        log_error "user-api 服务健康检查最终失败"
         log_info "查看 user-api 日志："
-        docker-compose logs --tail 10 user-api
+        docker-compose logs --tail 20 user-api
     fi
 
     # 检查外部 nginx 服务（如果配置了的话）
@@ -223,6 +319,11 @@ show_info() {
     echo "  - User API: miniblog-user-api (端口: 8888)"
     echo "  - User RPC: miniblog-user-rpc (端口: 8080)"
     echo ""
+    echo "镜像信息："
+    echo "  - 镜像目录: $IMAGES_DIR"
+    echo "  - User API 镜像: $USER_API_IMAGE"
+    echo "  - User RPC 镜像: $USER_RPC_IMAGE"
+    echo ""
     echo "日志目录："
     echo "  - User API: ./logs/user-api"
     echo "  - User RPC: ./logs/user-rpc"
@@ -239,12 +340,22 @@ show_info() {
     echo "  3. 检查服务状态: ./infrastructure-manager.sh status"
     echo "  4. 健康检查: ./infrastructure-manager.sh health all"
     echo "  5. 查看应用日志: docker-compose logs -f user-api user-rpc"
+    echo "  6. 重新加载镜像: 删除镜像后重新运行此脚本"
     echo "=================================="
+}
+
+# 清理函数
+cleanup() {
+    log_info "清理临时资源..."
+    # 可以在这里添加清理逻辑
 }
 
 # 主函数
 main() {
     log_info "开始生产环境部署..."
+
+    # 设置错误处理
+    trap cleanup EXIT
 
     check_docker
     create_directories
