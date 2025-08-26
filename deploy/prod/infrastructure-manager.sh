@@ -420,6 +420,40 @@ manage_network() {
     esac
 }
 
+# 健康检查
+health_check() {
+    local service=${1:-"all"}
+
+    # 检查健康检查脚本是否存在
+    if [ ! -f "./health-check.sh" ]; then
+        log_error "健康检查脚本不存在: ./health-check.sh"
+        exit 1
+    fi
+
+    # 确保脚本有执行权限
+    chmod +x ./health-check.sh
+
+    case "$service" in
+        "all")
+            log_info "执行所有服务健康检查..."
+            ./health-check.sh check all
+            ;;
+        "mysql"|"redis"|"etcd"|"zookeeper"|"kafka")
+            log_info "执行 $service 服务健康检查..."
+            ./health-check.sh check "$service"
+            ;;
+        "quick")
+            log_info "执行快速健康检查..."
+            ./health-check.sh quick all
+            ;;
+        *)
+            log_error "未知服务: $service"
+            log_info "可用服务: mysql, redis, etcd, zookeeper, kafka, all, quick"
+            exit 1
+            ;;
+    esac
+}
+
 # 显示帮助信息
 show_help() {
     echo "基础设施管理脚本"
@@ -437,6 +471,7 @@ show_help() {
     echo "  restore <backup-file>   恢复数据库"
     echo "  clean                   清理所有数据（危险操作）"
     echo "  network <action>        网络管理 (create/delete/status)"
+    echo "  health [service]        健康检查 (mysql/redis/etcd/zookeeper/kafka/all/quick)"
     echo "  help                    显示此帮助信息"
     echo ""
     echo "示例:"
@@ -449,6 +484,9 @@ show_help() {
     echo "  $0 network status        # 查看网络状态"
     echo "  $0 network create        # 创建网络"
     echo "  $0 network delete        # 删除网络"
+    echo "  $0 health all            # 检查所有服务健康状态"
+    echo "  $0 health mysql          # 检查 MySQL 健康状态"
+    echo "  $0 health quick          # 快速健康检查（静默模式）"
 }
 
 # 主函数
@@ -483,6 +521,9 @@ main() {
             ;;
         "network")
             manage_network "$2"
+            ;;
+        "health")
+            health_check "$2"
             ;;
         "help"|"-h"|"--help")
             show_help

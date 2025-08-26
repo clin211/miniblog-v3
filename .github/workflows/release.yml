@@ -151,7 +151,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             mkdir -p /home/project/miniblog-v3/logs
-            mkdir -p /home/project/miniblog-v3/nginx
 
       - name: 设置文件权限
         uses: appleboy/ssh-action@v1.0.3
@@ -165,6 +164,7 @@ jobs:
             chmod +x infrastructure-manager.sh
             chmod +x kafka-manager.sh
             chmod +x nginx-manager.sh
+            chmod +x health-check.sh
 
       - name: 设置镜像标签
         uses: appleboy/ssh-action@v1.0.3
@@ -201,36 +201,20 @@ jobs:
             echo "检查基础设施服务状态..."
             ./infrastructure-manager.sh status
 
-            echo "检查关键服务连接..."
+            echo ""
+            echo "执行健康检查..."
 
-            # 检查 MySQL
-            if docker exec miniblog-v3-mysql-1 mysqladmin ping -h"localhost" --silent 2>/dev/null; then
-              echo "✅ MySQL 服务正常"
+            # 使用健康检查脚本进行快速检查
+            if ./infrastructure-manager.sh health quick; then
+              echo "✅ 所有基础设施服务运行正常"
             else
-              echo "❌ MySQL 服务异常，请手动启动基础设施服务"
+              echo "❌ 基础设施服务存在问题，请手动启动基础设施服务"
               echo "执行命令: ./infrastructure-manager.sh start"
+              echo ""
+              echo "详细健康检查报告："
+              ./infrastructure-manager.sh health all
               exit 1
             fi
-
-            # 检查 Redis
-            if docker exec miniblog-v3-redis-1 redis-cli ping 2>/dev/null | grep -q "PONG"; then
-              echo "✅ Redis 服务正常"
-            else
-              echo "❌ Redis 服务异常，请手动启动基础设施服务"
-              echo "执行命令: ./infrastructure-manager.sh start"
-              exit 1
-            fi
-
-            # 检查 etcd
-            if docker exec miniblog-v3-etcd-1 etcdctl endpoint health 2>/dev/null | grep -q "healthy"; then
-              echo "✅ etcd 服务正常"
-            else
-              echo "❌ etcd 服务异常，请手动启动基础设施服务"
-              echo "执行命令: ./infrastructure-manager.sh start"
-              exit 1
-            fi
-
-            echo "✅ 所有基础设施服务运行正常"
 
       - name: 启动应用服务
         uses: appleboy/ssh-action@v1.0.3
