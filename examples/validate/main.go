@@ -27,7 +27,7 @@ type User struct {
 }
 
 func main() {
-	fmt.Println("=== 自定义参数校验系统演示 ===\n")
+	fmt.Println("=== 自定义参数校验系统演示 ===")
 
 	// 示例1: 验证有效的用户数据
 	fmt.Println("1. 验证有效的用户数据:")
@@ -96,5 +96,6 @@ func main() {
 	fmt.Printf("   1000次验证耗时: %v\n", duration)
 	fmt.Printf("   平均每次验证耗时: %v\n", duration/1000)
 
-	fmt.Println("\n=== 演示完成 ===")
+	fmt.Println()
+	fmt.Println("=== 演示完成 ===")
 }
