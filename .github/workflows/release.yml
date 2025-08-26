@@ -225,6 +225,12 @@ jobs:
           script: |
             cd /home/project/miniblog-v3
 
+            echo "检查网络连接..."
+            docker network ls | grep miniblog-v3-network || echo "网络不存在"
+
+            echo "检查基础设施服务容器..."
+            docker ps | grep miniblog-v3- || echo "没有找到基础设施服务容器"
+
             echo "停止现有应用服务..."
             docker-compose down user-api user-rpc 2>/dev/null || true
 
@@ -236,6 +242,10 @@ jobs:
 
             echo "检查应用服务状态..."
             docker-compose ps user-api user-rpc
+
+            echo "检查应用服务日志..."
+            docker-compose logs --tail 10 user-rpc
+            docker-compose logs --tail 10 user-api
 
       - name: 验证部署
         uses: appleboy/ssh-action@v1.0.3

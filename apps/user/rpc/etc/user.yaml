@@ -8,16 +8,16 @@ ListenOn: 0.0.0.0:8889
 Mode: dev
 Etcd:
   Hosts:
-  - etcd:2379
+  - miniblog-v3-etcd-1:2379
   Key: user.rpc
 
 Mysql:
-  DataSource: root:j478EaZGDNPUbnXb@tcp(mysql:3306)/miniblog_user?charset=utf8mb4&parseTime=True&loc=Local
+  DataSource: root:root123456@tcp(miniblog-v3-mysql-1:3306)/miniblog?charset=utf8mb4&parseTime=True&loc=Local
 
 Cache:
-- Host: redis:6379
+- Host: miniblog-v3-redis-1:6379
   Type: node
-  Pass: weZ2014P89rlTuWe
+  Pass: redis123
   Key: user.rpc
 
 JWT:

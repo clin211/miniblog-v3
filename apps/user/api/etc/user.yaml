@@ -9,5 +9,5 @@ Port: 8888
 
 UserRpc:
   Endpoints:
-  - user-rpc:8889
+  - miniblog-user-rpc:8889
   NonBlock: true

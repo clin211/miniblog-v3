@@ -6,11 +6,6 @@ services:
     image: miniblog-user-rpc:${IMAGE_TAG:-release}
     container_name: miniblog-user-rpc
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       - TZ=Asia/Shanghai
     volumes:
