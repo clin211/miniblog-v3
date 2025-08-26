@@ -311,6 +311,65 @@ show_logs() {
     fi
 }
 
+# 测试服务连接
+test_service() {
+    local service=${1:-""}
+
+    if [ -z "$service" ]; then
+        log_error "请指定要测试的服务"
+        log_info "可用服务: mysql, redis, etcd, zookeeper, kafka"
+        exit 1
+    fi
+
+    case "$service" in
+        "mysql")
+            log_info "测试 MySQL 连接..."
+            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T mysql mysqladmin ping -h localhost --silent; then
+                log_info "MySQL 连接正常"
+            else
+                log_error "MySQL 连接失败"
+            fi
+            ;;
+        "redis")
+            log_info "测试 Redis 连接..."
+            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T redis redis-cli -a "${REDIS_PASSWORD:-redis123}" ping > /dev/null 2>&1; then
+                log_info "Redis 连接正常"
+            else
+                log_error "Redis 连接失败"
+            fi
+            ;;
+        "etcd")
+            log_info "测试 etcd 连接..."
+            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T etcd etcdctl endpoint health --endpoints=http://localhost:2379 > /dev/null 2>&1; then
+                log_info "etcd 连接正常"
+            else
+                log_error "etcd 连接失败"
+            fi
+            ;;
+        "zookeeper")
+            log_info "测试 Zookeeper 连接..."
+            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T zookeeper sh -c "echo ruok | nc localhost 2181 | grep -q imok"; then
+                log_info "Zookeeper 连接正常"
+            else
+                log_error "Zookeeper 连接失败"
+            fi
+            ;;
+        "kafka")
+            log_info "测试 Kafka 连接..."
+            if docker-compose -f $COMPOSE_FILE -p $PROJECT_NAME exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+                log_info "Kafka 连接正常"
+            else
+                log_error "Kafka 连接失败"
+            fi
+            ;;
+        *)
+            log_error "未知服务: $service"
+            log_info "可用服务: mysql, redis, etcd, zookeeper, kafka"
+            exit 1
+            ;;
+    esac
+}
+
 # 清理数据（危险操作）
 clean_data() {
     log_error "这将删除所有数据，包括数据库和缓存"
@@ -341,6 +400,7 @@ show_help() {
     echo "  stop                    停止基础设施服务"
     echo "  restart                 重启基础设施服务"
     echo "  status                  查看服务状态"
+    echo "  test <service>          测试服务连接"
     echo "  logs [service]          查看服务日志"
     echo "  backup [backup-dir]     备份数据库"
     echo "  restore <backup-file>   恢复数据库"
@@ -350,6 +410,7 @@ show_help() {
     echo "示例:"
     echo "  $0 start                 # 启动基础设施"
     echo "  $0 status                # 查看状态"
+    echo "  $0 test zookeeper        # 测试 Zookeeper 连接"
     echo "  $0 backup ./backups      # 备份数据库"
     echo "  $0 restore backup.sql    # 恢复数据库"
     echo "  $0 logs mysql            # 查看 MySQL 日志"
@@ -369,6 +430,9 @@ main() {
             ;;
         "status")
             status_infrastructure
+            ;;
+        "test")
+            test_service "$2"
             ;;
         "logs")
             show_logs "$2"
